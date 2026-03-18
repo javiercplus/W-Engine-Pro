@@ -1,0 +1,6 @@
+PySide6
+python-mpv
+PyGObject
+psutil
+python-xlib
+requests
