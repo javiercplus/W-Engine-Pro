@@ -59,7 +59,7 @@ SurfaceManager → renderizado y gestión de ventanas
 ConfigManager → configuración y estado
 UI (Qt) → interfaz gráfica
 
-:Estado actual
+Estado actual:
 En desarrollo activo
 
 Se están implementando:
