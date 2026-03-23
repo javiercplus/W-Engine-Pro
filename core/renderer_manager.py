@@ -1,262 +1,150 @@
-import subprocess
 import os
-import time
-import shutil
-import re
-import json
-import socket
 import logging
+import gc
+import psutil
+from core.desktop_helper import DesktopHelper
+from engines.x11_backend import X11Backend
+from engines.wayland_backend import WaylandBackend
+from engines.gnome_wayland_backend import GnomeWaylandBackend
+from engines.gnome_mpv_backend.engine import GnomeIntegratedEngine
+from core.logger import log_event
+
 
 class RendererManager:
-    """Gestiona el proceso de bajo nivel que renderiza el video (mpv/mpvpaper)."""
+    """
+    Manages the rendering process natively.
+    All packaging-specific logic (Flatpak/AppImage) has been removed for native stability.
+    """
+
     def __init__(self):
-        self.bg_proc = None
-        self.socket_path = "/tmp/mpv-bg-socket"
-        self.deps = {
-            "xwinwrap": shutil.which("xwinwrap"),
-            "mpv": shutil.which("mpv"),
-            "mpvpaper": shutil.which("mpvpaper")
-        }
-        self.is_wayland = 'WAYLAND_DISPLAY' in os.environ or os.environ.get('XDG_SESSION_TYPE') == 'wayland'
+        self.profile = DesktopHelper.get_profile()
+        self.backend = self._initialize_backend()
+        self.safe_mode = False
+        self.last_config = None
+        self.last_video = None
+        self.playback_mode = "Auto"
+        self.current_mode = "Disk"
+        self.cache_info = {"size": "0", "secs": 0}
+
+        from core.process_manager import ProcessManager
+
+        ProcessManager().set_error_callback(self._on_critical_error)
+
+    def _on_critical_error(self, name, error_type):
+        self.profile.metrics.restarts += 1
+        if error_type == "gpu_fail" and not self.safe_mode:
+            self.safe_mode = True
+            if self.last_config and self.last_video:
+                self.restart(self.last_config, self.last_video)
+
+    def _initialize_backend(self):
+        best = self.profile.get_best_backend()
+        # Para GNOME, usamos el motor nativo de integración con MPV
+        if self.profile.compositor == "GNOME":
+            return GnomeIntegratedEngine()
+        elif self.profile.protocol == "x11":
+            return X11Backend()
+        else:
+            return WaylandBackend()
+
+    def is_running(self):
+        return any(
+            name.startswith(("x11-wallpaper", "wayland-wallpaper", "gnome-mpv"))
+            for name in self.backend.proc_manager.processes.keys()
+        )
+
+    def apply_mode_live(self, mode):
+        if not self.last_video:
+            return
+        self.playback_mode = mode
+        self.current_mode, reason = self.resolve_playback_mode(self.last_video)
+        ram_free = psutil.virtual_memory().available
+        flags, size, secs = self._calculate_cache_params(self.current_mode, ram_free)
+        self.cache_info = {"size": size, "secs": secs}
+        if self.current_mode == "Memory":
+            self.send_command("set_property", "cache", "yes")
+            self.send_command("set_property", "demuxer-max-bytes", size)
+            self.send_command("set_property", "cache-secs", secs)
+        else:
+            self.send_command("set_property", "cache", "no")
 
     def send_command(self, command, *args):
-        """Sends a JSON-RPC command to the mpv process with retries."""
-        if not os.path.exists(self.socket_path):
-            print(f"[Renderer] Error: Socket no encontrado en {self.socket_path}")
-            return False
-            
-        for i in range(5):
-            try:
-                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-                    client.settimeout(0.5)
-                    client.connect(self.socket_path)
-                    msg = {"command": [command] + list(args)}
-                    client.sendall((json.dumps(msg) + "\n").encode())
-                return True
-            except (socket.error, socket.timeout) as e:
-                time.sleep(0.1)
-        print(f"[Renderer] Error: No se pudo enviar comando {command} tras 5 intentos.")
-        return False
+        return self.backend.send_command(command, *args)
 
     def update_setting(self, key, value):
-        """Intenta actualizar un ajuste dinámicamente sin reiniciar."""
-        if not self.bg_proc:
-            logging.warning("[Renderer] Cannot update setting: No process running.")
-            return False
+        return self.backend.update_setting(key, value)
 
-        logging.info(f"[Renderer] Dynamic update: {key} = {value}")
-
-        if key == "volume":
-            return self.send_command("set_property", "volume", value)
-        elif key == "mute":
-            return self.send_command("set_property", "mute", value)
-        elif key == "playback_rate":
-            return self.send_command("set_property", "speed", value)
-        elif key == "loop":
-            if value == "Loop":
-                self.send_command("set_property", "play-dir", "forward")
-                self.send_command("set_property", "loop-file", "inf")
-                self.send_command("set_property", "loop-playlist", "inf")
-                self.send_command("set_property", "pause", False)
-                return True
-            elif value == "Stop":
-                return self.send_command("set_property", "pause", True)
-            return False
-        elif key == "fit":
-            if value == "Stretch": 
-                self.send_command("set_property", "video-zoom", 0)
-                self.send_command("set_property", "keepaspect", False)
-                self.send_command("set_property", "panscan", 0.0)
-            elif value == "Cover": 
-                self.send_command("set_property", "video-zoom", 0)
-                self.send_command("set_property", "keepaspect", True)
-                self.send_command("set_property", "panscan", 1.0)
-            elif value == "Contain":
-                self.send_command("set_property", "video-zoom", 0)
-                self.send_command("set_property", "keepaspect", True)
-                self.send_command("set_property", "panscan", 0.0)
-            elif value == "Center":
-                self.send_command("set_property", "video-zoom", 0)
-                self.send_command("set_property", "panscan", 0.0)
-                self.send_command("set_property", "keepaspect", True)
-            return True
-        return False
-
-    def restart(self, config, video_path):
-        print("[Renderer] Reiniciando renderer...")
+    def restart(self, config, video_path, initial_pause=False):
         self.stop()
-        time.sleep(0.3)
-        self.start(config, video_path)
+        return self.start(config, video_path, initial_pause)
 
-    def start(self, config, video_path):
+    def start(self, config, video_path, initial_pause=False):
         if not video_path:
-            print("[Renderer] Ruta de video inválida.")
             return False
+        self.last_config = config
+        self.last_video = video_path
 
-        is_url = video_path.startswith(("http://", "https://", "rtsp://", "udp://"))
-        if not is_url and not os.path.exists(video_path):
-            print(f"[Renderer] Archivo no encontrado: {video_path}")
-            return False
+        # Pasar info del compositor al backend
+        config.set_volatile("compositor", self.profile.compositor)
 
-        self.stop()
-        time.sleep(0.2)
+        self.playback_mode = config.get_setting("playback_mode", "Auto")
+        ram_info = psutil.virtual_memory()
 
-        if os.path.exists(self.socket_path):
-            try: os.remove(self.socket_path)
-            except OSError: pass
+        self.current_mode, reason = self.resolve_playback_mode(video_path)
+        cache_flags, size, secs = self._calculate_cache_params(
+            self.current_mode, ram_info.available
+        )
+        self.cache_info = {"size": size, "secs": secs}
 
-        if self.is_wayland:
-            if not self.deps["mpvpaper"]:
-                print("[Renderer] 'mpvpaper' no encontrado. Usando fallback portátil (mpv directo)...")
-                cmd = ["mpv"] + self._build_mpv_args(config, wid_needed=False)
-                cmd += ["--gpu-context=wayland", "--force-window=yes", "--title=W-Engine-Wallpaper", video_path]
-                self.bg_proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                return True
-            
-            layout_mode = config.get("layout_mode", "Individual")
-            target_monitor = config.get("target_monitor", "Auto")
-            
-            if layout_mode == "Extendido (Span)":
-                outputs = ["*"]
-            elif layout_mode == "Duplicado":
-                outputs = ["*"] 
-            else:
-                outputs = ["*"] if target_monitor == "Auto" else [target_monitor]
+        config.set_setting("_initial_pause", initial_pause)
+        config.set_setting("_mpv_cache_flags", cache_flags)
 
-            mpv_opts = self._build_mpv_args(config, wid_needed=False)
-            base_cmd = ["mpvpaper"]
-            for opt in mpv_opts:
-                if opt: base_cmd.extend(["-o", opt])
+        return self.backend.start(config, video_path)
 
-            for out in outputs:
-                cmd = base_cmd + [out, video_path]
-                self.bg_proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return True
+    def get_active_sockets(self):
+        if hasattr(self.backend, "active_sockets"):
+            return self.backend.active_sockets
+        return []
 
-        if not self.deps["xwinwrap"]:
-            print("[Renderer] ERROR: 'xwinwrap' no encontrado.")
-            return False
-
-        layout_mode = config.get("layout_mode", "Individual")
-        target_monitor = config.get("target_monitor", "Auto")
-        
-        xwin_geometries = []
-
+    def resolve_playback_mode(self, video_path):
+        if "Memory" in self.playback_mode:
+            return "Memory", "user_forced"
+        if "Disk" in self.playback_mode:
+            return "Disk", "user_forced"
+        ram_info = psutil.virtual_memory()
+        available_gb = ram_info.available / 1024**3
         try:
-            output = subprocess.check_output("xrandr --query", shell=True).decode()
-            
-            if layout_mode == "Extendido (Span)":
-                match = re.search(r"current (\d+) x (\d+)", output)
-                if match:
-                    xwin_geometries = [(f"{match.group(1)}x{match.group(2)}+0+0", "Combined")]
-            
-            elif layout_mode == "Duplicado":
-                matches = re.finditer(r"(\S+) connected (?:primary )?(\d+x\d+\+\d+\+\d+)", output)
-                for m in matches:
-                    xwin_geometries.append((m.group(2), m.group(1)))
-            
-            else:
-                if target_monitor == "Auto":
-                    match = re.search(r"(\S+) connected primary (\d+x\d+\+\d+\+\d+)", output)
-                    if not match:
-                        match = re.search(r"(\S+) connected (\d+x\d+\+\d+\+\d+)", output)
-                    if match:
-                        xwin_geometries = [(match.group(2), match.group(1))]
-                else:
-                    match = re.search(fr"{re.escape(target_monitor)} connected (?:primary )?(\d+x\d+\+\d+\+\d+)", output)
-                    if match:
-                        xwin_geometries = [(match.group(1), target_monitor)]
+            file_size_mb = os.path.getsize(video_path) / 1024**2
+            if available_gb < 1.5:
+                return "Disk", "low_ram"
+            if file_size_mb < 200 and available_gb > 2:
+                return "Memory", "light_video"
+        except:
+            pass
+        return "Disk", "heavy_video"
 
-        except Exception as e:
-            print(f"[Renderer] Error detecting xrandr geometry: {e}")
-
-        if not xwin_geometries:
-            xwin_geometries = [("-fs", "Default")]
-
-        draw_mode = config.get("draw_mode", "Estándar")
-        processes = []
-
-        for geo, name in xwin_geometries:
-            xwin_args = ["-g", geo] if geo != "-fs" else ["-fs"]
-            xwin_cmd = ["xwinwrap"] + xwin_args + ["-ni", "-b", "-nf"]
-            if draw_mode == "ARGB (Compositor)": xwin_cmd += ["-ov", "-argb"]
-            elif draw_mode == "Forzado": xwin_cmd += ["-sh", "rectangle"]
-            else: xwin_cmd += ["-ov"]
-            xwin_cmd += ["--"]
-
-            mpv_cmd = ["mpv"] + self._build_mpv_args(config, wid_needed=True)
-            mpv_cmd.append(video_path)
-            
-            p = subprocess.Popen(xwin_cmd + mpv_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            processes.append(p)
-        
-        if processes:
-            self.bg_proc = processes[0]
-        
-        import threading
-        threading.Timer(0.5, lambda: subprocess.run(["xfdesktop", "--reload"], stderr=subprocess.DEVNULL)).start()
-        
-        return True
-
-    def _build_mpv_args(self, config, wid_needed=True):
-        args = []
-        if wid_needed: args.append("--wid=%WID")
-        
-        volume = config.get('volume', 50)
-        mute = 'yes' if config.get('mute', False) else 'no'
-        loop_val = "inf" if config.get('loop', 'Loop') == 'Loop' else 'no'
-        
-        args.extend([
-            f"--loop-file={loop_val}", f"--volume={volume}", f"--mute={mute}",
-            f"--gpu-api={config.get('gpu_api', 'auto')}",
-            f"--hwdec={config.get('hwdec', 'auto')}",
-            "--vo=gpu",
-            "--keep-open=yes",
-            f"--input-ipc-server={self.socket_path}",
-            "--ytdl=yes",
-            "--tls-verify=no",
-            "--cache=yes",
-            "--demuxer-max-bytes=150M",
-            "--demuxer-max-back-bytes=75M",
-            "--no-osc", "--no-osd-bar", "--no-input-default-bindings", "--idle"
-        ])
-
-        fps = config.get('fps_limit', 60)
-        if isinstance(fps, int) and fps > 0:
-            args.append(f"--override-display-fps={fps}")
-
-        scaling = config.get("fit", "Cover")
-        if scaling == "Stretch": 
-            args += ["--keepaspect=no"]
-        elif scaling == "Cover": 
-            args += ["--panscan=1.0", "--keepaspect=yes"]
-        elif scaling == "Center":
-            args += ["--panscan=0.0", "--keepaspect=yes"]
-        elif scaling == "Contain":
-            args += ["--panscan=0.0", "--keepaspect=yes"]
-        else: 
-            args += ["--keepaspect=yes"]
-
-        res_map = {
-            "1080p (Full HD)": "scale=-1:1080",
-            "720p (HD)": "scale=-1:720",
-            "480p (SD)": "scale=-1:480",
-        }
-        render_res = config.get("video_resolution", "Nativa")
-        if render_res in res_map:
-            args += [f"--vf={res_map[render_res]}"]
-
-        return args
+    def _calculate_cache_params(self, mode, ram_free):
+        if mode == "Disk":
+            return ["--cache=no"], "0", 0
+        ram_free_gb = ram_free / 1024**3
+        if ram_free_gb > 4:
+            size, secs = "400M", 120
+        elif ram_free_gb > 2:
+            size, secs = "200M", 60
+        else:
+            size, secs = "50M", 30
+        return (
+            [
+                "--cache=yes",
+                f"--cache-secs={secs}",
+                f"--demuxer-max-bytes={size}",
+                "--demuxer-readahead-secs=30",
+            ],
+            size,
+            secs,
+        )
 
     def stop(self):
-        if self.bg_proc:
-            try:
-                self.bg_proc.terminate()
-                self.bg_proc.wait(timeout=0.5)
-            except: 
-                try: self.bg_proc.kill()
-                except: pass
-            self.bg_proc = None
-            
-        subprocess.run(["pkill", "-f", "mpvpaper"], stderr=subprocess.DEVNULL)
-        subprocess.run(["pkill", "-f", f"mpv.*{self.socket_path}"], stderr=subprocess.DEVNULL)
+        if self.backend:
+            self.backend.stop()
+            gc.collect()

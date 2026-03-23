@@ -1,0 +1,18 @@
+#!/bin/bash
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+# 1. Configurar Rutas de Librerías (Fundamental para mpv y plugins)
+export LD_LIBRARY_PATH="$HERE/usr/lib:$LD_LIBRARY_PATH"
+
+# 2. Configurar Python Bundled
+export PYTHONHOME="$HERE/usr"
+export PYTHONPATH="$HERE/usr/share/wengine:$HERE/usr/lib/python3.12/site-packages:$PYTHONPATH"
+
+# 3. Configurar Qt de PySide6 (Esto asegura que use el Qt de PySide6)
+PYSIDE_QT="$HERE/usr/lib/python3.12/site-packages/PySide6/Qt"
+export QT_PLUGIN_PATH="$PYSIDE_QT/plugins"
+export QML2_IMPORT_PATH="$PYSIDE_QT/qml"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$PYSIDE_QT/plugins/platforms"
+
+# 4. Lanzar la aplicación usando el Python interno
+exec "$HERE/usr/bin/python3" "$HERE/usr/share/wengine/main.py" "$@"

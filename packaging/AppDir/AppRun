@@ -1,0 +1,13 @@
+#!/bin/bash
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+# Configurar rutas de Python
+export PYTHONPATH="$HERE/usr/share/wengine:$HERE/usr/lib/python3.14/site-packages:$PYTHONPATH"
+export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/lib/python3.14/site-packages/PySide6/Qt/lib:$LD_LIBRARY_PATH"
+
+# Entorno Qt
+export QT_PLUGIN_PATH="$HERE/usr/lib/python3.14/site-packages/PySide6/Qt/plugins"
+export QT_QPA_PLATFORM="wayland;xcb"
+
+# Ejecutar con el Python del sistema
+exec python3 "$HERE/usr/share/wengine/main.py" "$@"

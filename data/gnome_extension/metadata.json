@@ -1,0 +1,8 @@
+{
+  "name": "W-Engine Wallpaper Helper",
+  "description": "Ancla las ventanas de W-Engine al fondo del escritorio en GNOME Wayland.",
+  "uuid": "w-engine-helper@gamingofdemon.com",
+  "shell-version": ["45", "46", "47"],
+  "url": "https://discord.gg/xTdmDHfgZT",
+  "version": 1
+}

@@ -1,6 +1,8 @@
 PySide6
 python-mpv
-PyGObject
+PyGObject>=3.42.0
 psutil
 python-xlib
 requests
+Pillow
+pydbus
