@@ -1,0 +1,71 @@
+{
+  "app-id": "org.wengine.Pro",
+  "runtime": "org.kde.Platform",
+  "runtime-version": "6.7",
+  "sdk": "org.kde.Sdk",
+  "command": "w-engine-pro",
+  "finish-args": [
+    "--share=ipc",
+    "--share=network",
+    "--socket=x11",
+    "--socket=wayland",
+    "--device=dri",
+    "--filesystem=home",
+    "--filesystem=xdg-pictures:ro",
+    "--filesystem=xdg-videos:ro",
+    "--filesystem=xdg-download:ro",
+    "--talk-name=org.freedesktop.Flatpak",
+    "--talk-name=org.gnome.Shell",
+    "--env=QT_QPA_PLATFORM=wayland;x11",
+    "--env=MPV_LIB=/app/lib/libmpv.so.2"
+  ],
+  "build-extensions": [
+    "org.freedesktop.Sdk.Extension.python3.11"
+  ],
+  "modules": [
+    {
+      "name": "mpv",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-Dbuild-libmpv=true",
+        "-Dbuild-player=false",
+        "-Dcplayer=false"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://github.com/mpv-player/mpv/archive/refs/tags/v0.38.0.tar.gz",
+          "sha256": "CAMBIAR_CON_EL_HASH_REAL_DE_LA_VERSION"
+        }
+      ]
+    },
+    "python-modules/python3-pyside6.json",
+    "python-modules/python3-mpv.json",
+    "python-modules/python3-pygobject.json",
+    "python-modules/python3-psutil.json",
+    "python-modules/python3-xlib.json",
+    "python-modules/python3-requests.json",
+    "python-modules/python3-pillow.json",
+    "python-modules/python3-pydbus.json",
+    {
+      "name": "w-engine-pro",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --prefix=/app --no-deps --no-build-isolation -v .",
+        "install -Dm755 main.py /app/bin/w-engine-pro",
+        "install -Dm644 flatpak/org.wengine.Pro.desktop /app/share/applications/org.wengine.Pro.desktop",
+        "install -Dm644 data/W-Enginepro.svg /app/share/icons/hicolor/scalable/apps/org.wengine.Pro.svg",
+        "install -Dm644 flatpak/org.wengine.Pro.metainfo.xml /app/share/metainfo/org.wengine.Pro.metainfo.xml",
+        "mkdir -p /app/share/wengine",
+        "cp -r engines render ui threads styles data /app/share/wengine/",
+        "cp config.py engine_loader.py player.py engine.py main.py /app/share/wengine/"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "."
+        }
+      ]
+    }
+  ]
+}
