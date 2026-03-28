@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.wengine.Pro</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>W-Engine Pro</name>
+  <summary>Advanced wallpaper engine for Linux with video and interactive support</summary>
+  <description>
+    <p>W-Engine Pro is a powerful wallpaper engine that supports:</p>
+    <ul>
+      <li>Video wallpapers with mpv backend</li>
+      <li>Parallax and web-based wallpapers</li>
+      <li>X11 and Wayland (including GNOME) support</li>
+      <li>System monitoring overlays</li>
+      <li>Plugin system and theme customization</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">org.wengine.Pro.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <caption>W-Engine Pro main interface</caption>
+      <!-- Agrega URL de screenshot cuando esté disponible -->
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/ErzaGOD19/W-Engine-Pro</url>
+  <url type="bugtracker">https://github.com/ErzaGOD19/W-Engine-Pro/issues</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-03-29">
+      <description>
+        <p>Initial Flatpak release</p>
+      </description>
+    </release>
+  </releases>
+  <provides>
+    <binaries>
+      <binary>w-engine-pro</binary>
+    </binaries>
+  </provides>
+</component>
