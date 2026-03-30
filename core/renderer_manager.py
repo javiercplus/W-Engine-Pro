@@ -1,13 +1,15 @@
-import os
-import logging
 import gc
+import logging
+import os
+
 import psutil
+
 from core.desktop_helper import DesktopHelper
-from engines.x11_backend import X11Backend
-from engines.wayland_backend import WaylandBackend
-from engines.gnome_wayland_backend import GnomeWaylandBackend
-from engines.gnome_mpv_backend.engine import GnomeIntegratedEngine
 from core.logger import log_event
+from engines.gnome_mpv_backend.engine import GnomeIntegratedEngine
+from engines.gnome_wayland_backend import GnomeWaylandBackend
+from engines.wayland_backend import WaylandBackend
+from engines.x11_backend import X11Backend
 
 
 class RendererManager:
@@ -39,13 +41,27 @@ class RendererManager:
 
     def _initialize_backend(self):
         best = self.profile.get_best_backend()
-        # Para GNOME, usamos el motor nativo de integración con MPV
-        if self.profile.compositor == "GNOME":
+        logging.info(f"[RendererManager] Selected backend: {best}")
+
+        # MPV es el backend principal - seleccionar basado en el mejor backend detectado
+        if best == "gnome_fake" or self.profile.compositor == "GNOME":
+            # GNOME: usar MPV integrado nativo
             return GnomeIntegratedEngine()
-        elif self.profile.protocol == "x11":
+        elif best == "x11" or self.profile.protocol == "x11":
+            # X11: usar xwinwrap + MPV
             return X11Backend()
-        else:
+        elif best == "mpvpaper":
+            # Wayland con mpvpaper disponible
             return WaylandBackend()
+        elif best == "mpv_floating":
+            # Wayland sin mpvpaper: usar MPV flotante
+            return WaylandBackend()
+        else:
+            # Fallback: siempre usar MPV
+            if self.profile.protocol == "x11":
+                return X11Backend()
+            else:
+                return WaylandBackend()
 
     def is_running(self):
         return any(

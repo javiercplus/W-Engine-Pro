@@ -87,6 +87,8 @@ def main():
 
         exit_code = app.exec()
 
+    except KeyboardInterrupt:
+        logging.info("Received KeyboardInterrupt, shutting down...")
     except Exception as e:
         logging.error(f"CRITICAL UI ERROR: {e}")
         exit_code = 1

@@ -1,10 +1,11 @@
-import subprocess
 import logging
-import time
 import os
 import signal
+import subprocess
 import threading
-from core.logger import log_event, MpvErrorParser
+import time
+
+from core.logger import MpvErrorParser, log_event
 
 
 class ProcessManager:
@@ -53,7 +54,7 @@ class ProcessManager:
         try:
             proc = subprocess.Popen(
                 cmd,
-                stdout=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=final_env,
                 preexec_fn=os.setsid,
@@ -66,9 +67,14 @@ class ProcessManager:
             threading.Thread(
                 target=self._read_stderr, args=(name, proc), daemon=True
             ).start()
+            # Non-blocking stdout reader
+            threading.Thread(
+                target=self._read_stdout, args=(name, proc), daemon=True
+            ).start()
             return proc
         except Exception as e:
             import traceback
+
             error_msg = f"Failed to start {name}: {e}\n{traceback.format_exc()}"
             log_event("ERROR", error_msg)
             return None
@@ -101,6 +107,19 @@ class ProcessManager:
                 if self.on_error_cb:
                     self.on_error_cb(name, error_type)
 
+            if self._stop_event.is_set() or proc.poll() is not None:
+                break
+
+    def _read_stdout(self, name, proc):
+        """Monitors stdout and logs it."""
+        if not proc.stdout:
+            return
+
+        for line in proc.stdout:
+            line = line.strip()
+            if not line:
+                continue
+            logging.debug(f"[{name} stdout] {line}")
             if self._stop_event.is_set() or proc.poll() is not None:
                 break
 

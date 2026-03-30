@@ -1,11 +1,13 @@
-from core.renderer_manager import RendererManager
-from core.event_bus import EventBus
-from core.activity_monitor import ActivityMonitor
-from core.health_monitor import HealthMonitor
-from PySide6.QtGui import QGuiApplication
-from PySide6.QtCore import QObject, Slot, QThread, QTimer
-from typing import Any
 import logging
+from typing import Any
+
+from PySide6.QtCore import QObject, QThread, QTimer, Slot
+from PySide6.QtGui import QGuiApplication
+
+from core.activity_monitor import ActivityMonitor
+from core.event_bus import EventBus
+from core.health_monitor import HealthMonitor
+from core.renderer_manager import RendererManager
 
 
 class EngineController(QObject):
@@ -105,20 +107,17 @@ class EngineController(QObject):
         ]
         if key in restart_keys:
             if self.active_wallpapers:
-                logging.info(f"Restarting all renderers due to config: {key}"
+                logging.info(f"Restarting all renderers due to config: {key}")
 
                 self.health_monitor.trigger_grace_period(10.0)
 
-               
                 current_activity_pause = getattr(
                     self.activity_monitor, "_last_pause_state", False
                 )
                 current_pause_state = self.is_paused or current_activity_pause
 
-                
                 self.health_monitor.set_paused(current_pause_state)
 
-                
                 for monitor_id, video_path in list(self.active_wallpapers.items()):
                     self.renderer.restart(
                         self.config, video_path, initial_pause=current_pause_state
@@ -187,8 +186,9 @@ class EngineController(QObject):
 
     def get_diagnostics(self) -> dict:
         """Collects all real-time engine and system status for the UI."""
-        import psutil
         import time
+
+        import psutil
 
         now = time.time()
         if not hasattr(self, "_diag_cache"):

@@ -1,8 +1,9 @@
+import logging
 import os
 import shutil
 import subprocess
-import logging
 import sys
+
 from PySide6.QtCore import QStandardPaths
 
 
@@ -40,9 +41,7 @@ class EnvironmentProfile:
                 if self.protocol == "wayland" and self.capabilities["layer_shell"]
                 else 0
             ),
-            "gnome_fake": (
-                150 if self.compositor == "GNOME" else 0
-            ),
+            "gnome_fake": (150 if self.compositor == "GNOME" else 0),
             "mpv_floating": 30 if self.protocol == "wayland" else 0,
         }
 
@@ -70,6 +69,7 @@ class DesktopHelper:
     """
     Universal helper for desktop-specific operations and environment detection.
     """
+
     EXTENSION_UUID = "w-engine-helper@gamingofdemon.com"
     _cached_profile = None
 
@@ -122,7 +122,9 @@ class DesktopHelper:
 
         appimage_path = os.environ.get("APPIMAGE")
         if not appimage_path:
-            main_script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main.py")
+            main_script = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main.py"
+            )
             appimage_path = f"{sys.executable} {main_script}"
 
         content = f"""[Desktop Entry]
@@ -219,24 +221,68 @@ Terminal=false
     def get_gnome_background():
         prefix = DesktopHelper._get_host_cmd_prefix()
         try:
-            uri = subprocess.check_output(prefix + ["gsettings", "get", "org.gnome.desktop.background", "picture-uri"]).decode().strip().strip("'")
-            uri_dark = subprocess.check_output(prefix + ["gsettings", "get", "org.gnome.desktop.background", "picture-uri-dark"]).decode().strip().strip("'")
+            uri = (
+                subprocess.check_output(
+                    prefix
+                    + [
+                        "gsettings",
+                        "get",
+                        "org.gnome.desktop.background",
+                        "picture-uri",
+                    ]
+                )
+                .decode()
+                .strip()
+                .strip("'")
+            )
+            uri_dark = (
+                subprocess.check_output(
+                    prefix
+                    + [
+                        "gsettings",
+                        "get",
+                        "org.gnome.desktop.background",
+                        "picture-uri-dark",
+                    ]
+                )
+                .decode()
+                .strip()
+                .strip("'")
+            )
             return uri, uri_dark
-        except: return None, None
+        except:
+            return None, None
 
     @staticmethod
     def get_xfce_background():
         prefix = DesktopHelper._get_host_cmd_prefix()
         try:
-            all_props = subprocess.check_output(prefix + ["xfconf-query", "-c", "xfce4-desktop", "-l"]).decode().splitlines()
-            target = next((p for p in all_props if "last-image" in p), "/backdrop/screen0/monitor0/workspace0/last-image")
-            path = subprocess.check_output(prefix + ["xfconf-query", "-c", "xfce4-desktop", "-p", target]).decode().strip()
+            all_props = (
+                subprocess.check_output(
+                    prefix + ["xfconf-query", "-c", "xfce4-desktop", "-l"]
+                )
+                .decode()
+                .splitlines()
+            )
+            target = next(
+                (p for p in all_props if "last-image" in p),
+                "/backdrop/screen0/monitor0/workspace0/last-image",
+            )
+            path = (
+                subprocess.check_output(
+                    prefix + ["xfconf-query", "-c", "xfce4-desktop", "-p", target]
+                )
+                .decode()
+                .strip()
+            )
             return path, None
-        except: return None, None
+        except:
+            return None, None
 
     @staticmethod
     def set_background(path_or_uri):
-        if not path_or_uri: return
+        if not path_or_uri:
+            return
         desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
         if "gnome" in desktop:
             DesktopHelper.set_gnome_background(path_or_uri)
@@ -248,10 +294,32 @@ Terminal=false
     @staticmethod
     def set_gnome_background(path_or_uri):
         prefix = DesktopHelper._get_host_cmd_prefix()
-        uri = path_or_uri if path_or_uri.startswith("file://") else f"file://{path_or_uri}"
+        uri = (
+            path_or_uri
+            if path_or_uri.startswith("file://")
+            else f"file://{path_or_uri}"
+        )
         try:
-            subprocess.run(prefix + ["gsettings", "set", "org.gnome.desktop.background", "picture-uri", f"'{uri}'"])
-            subprocess.run(prefix + ["gsettings", "set", "org.gnome.desktop.background", "picture-uri-dark", f"'{uri}'"])
+            subprocess.run(
+                prefix
+                + [
+                    "gsettings",
+                    "set",
+                    "org.gnome.desktop.background",
+                    "picture-uri",
+                    f"'{uri}'",
+                ]
+            )
+            subprocess.run(
+                prefix
+                + [
+                    "gsettings",
+                    "set",
+                    "org.gnome.desktop.background",
+                    "picture-uri-dark",
+                    f"'{uri}'",
+                ]
+            )
         except Exception as e:
             logging.error(f"Error setting GNOME background: {e}")
 
@@ -259,10 +327,29 @@ Terminal=false
     def set_xfce_background(path_or_uri):
         prefix = DesktopHelper._get_host_cmd_prefix()
         try:
-            all_props = subprocess.check_output(prefix + ["xfconf-query", "-c", "xfce4-desktop", "-l"]).decode().splitlines()
-            targets = [p for p in all_props if "last-image" in p] or ["/backdrop/screen0/monitor0/workspace0/last-image"]
+            all_props = (
+                subprocess.check_output(
+                    prefix + ["xfconf-query", "-c", "xfce4-desktop", "-l"]
+                )
+                .decode()
+                .splitlines()
+            )
+            targets = [p for p in all_props if "last-image" in p] or [
+                "/backdrop/screen0/monitor0/workspace0/last-image"
+            ]
             for target in targets:
-                subprocess.run(prefix + ["xfconf-query", "-c", "xfce4-desktop", "-p", target, "-s", path_or_uri])
+                subprocess.run(
+                    prefix
+                    + [
+                        "xfconf-query",
+                        "-c",
+                        "xfce4-desktop",
+                        "-p",
+                        target,
+                        "-s",
+                        path_or_uri,
+                    ]
+                )
         except Exception as e:
             logging.error(f"Error setting XFCE background: {e}")
 
@@ -275,13 +362,25 @@ Terminal=false
         prefix = DesktopHelper._get_host_cmd_prefix()
         try:
             DesktopHelper._ensure_kde_plugin_installed()
-            qdbus_bin = next((b for b in ["qdbus-qt5", "qdbus6", "qdbus"] if shutil.which(b)), None)
-            if not qdbus_bin: return
-            
+            qdbus_bin = next(
+                (b for b in ["qdbus-qt5", "qdbus6", "qdbus"] if shutil.which(b)), None
+            )
+            if not qdbus_bin:
+                return
+
             plugin_id = "org.wengine.pro.wallpaper"
             video_url = f"file://{os.path.abspath(path_or_uri)}"
             script = f'var allDesktops = desktops(); for (var i = 0; i < allDesktops.length; i++) {{ var d = allDesktops[i]; d.wallpaperPlugin = "{plugin_id}"; d.currentConfigGroup = Array("Wallpaper", "{plugin_id}", "General"); d.writeConfig("VideoUrls", "{video_url}"); d.writeConfig("FillMode", "1"); }}'
-            subprocess.run(prefix + [qdbus_bin, "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script])
+            subprocess.run(
+                prefix
+                + [
+                    qdbus_bin,
+                    "org.kde.plasmashell",
+                    "/PlasmaShell",
+                    "org.kde.PlasmaShell.evaluateScript",
+                    script,
+                ]
+            )
         except Exception as e:
             logging.error(f"Error setting KDE background: {e}")
 
@@ -297,24 +396,45 @@ Terminal=false
             return
 
         import threading
+
         def _worker():
             try:
                 from PIL import Image, ImageFilter
-                ffmpeg_bin = "ffmpeg"
-                appdir = os.environ.get("APPDIR")
-                if appdir and os.path.exists(os.path.join(appdir, "usr/bin/ffmpeg")):
-                    ffmpeg_bin = os.path.join(appdir, "usr/bin/ffmpeg")
+
+                ffmpeg_bin = "/usr/bin/ffmpeg"  # Usar la ruta absoluta
+                # appdir = os.environ.get("APPDIR") # No necesario si usamos ruta absoluta
+                # if appdir and os.path.exists(os.path.join(appdir, "usr/bin/ffmpeg")):
+                #    ffmpeg_bin = os.path.join(appdir, "usr/bin/ffmpeg")
                 tmp_dir = QStandardPaths.writableLocation(QStandardPaths.TempLocation)
                 file_hash = str(abs(hash(video_path)))
                 bg_path = os.path.join(tmp_dir, f"w_bg_blur_{file_hash}.png")
                 if not os.path.exists(bg_path):
-                    subprocess.run([ffmpeg_bin, "-y", "-ss", "00:00:00.500", "-i", video_path, "-vframes", "1", "-f", "image2", "-loglevel", "quiet", bg_path], timeout=2)
+                    subprocess.run(
+                        [
+                            ffmpeg_bin,
+                            "-y",
+                            "-ss",
+                            "00:00:00.500",
+                            "-i",
+                            video_path,
+                            "-vframes",
+                            "1",
+                            "-f",
+                            "image2",
+                            "-loglevel",
+                            "quiet",
+                            bg_path,
+                        ],
+                        timeout=2,
+                    )
                 if os.path.exists(bg_path):
                     with Image.open(bg_path) as img:
                         blurred = img.filter(ImageFilter.GaussianBlur(radius=15))
                         blurred.save(bg_path)
                     DesktopHelper.set_background(bg_path)
-            except: pass
+            except:
+                pass
+
         threading.Thread(target=_worker, daemon=True).start()
 
     @staticmethod
@@ -324,42 +444,66 @@ Terminal=false
             return "x11"
         if os.environ.get("WAYLAND_DISPLAY"):
             return "wayland"
-        
+
         # Fallback a loginctl
         try:
-            res = subprocess.check_output(["loginctl", "show-session", "self", "-p", "Type"], text=True)
-            if "Type=x11" in res: return "x11"
-            if "Type=wayland" in res: return "wayland"
-        except: pass
-        
+            res = subprocess.check_output(
+                ["loginctl", "show-session", "self", "-p", "Type"], text=True
+            )
+            if "Type=x11" in res:
+                return "x11"
+            if "Type=wayland" in res:
+                return "wayland"
+        except:
+            pass
+
         return "x11"
 
     @staticmethod
     def _get_compositor():
         xdg = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
-        if "hyprland" in xdg: return "Hyprland"
-        if "sway" in xdg: return "Sway"
-        if "gnome" in xdg: return "GNOME"
-        if "kde" in xdg or "plasma" in xdg: return "KDE"
-        if "xfce" in xdg: return "XFCE"
+        if "hyprland" in xdg:
+            return "Hyprland"
+        if "sway" in xdg:
+            return "Sway"
+        if "gnome" in xdg:
+            return "GNOME"
+        if "kde" in xdg or "plasma" in xdg:
+            return "KDE"
+        if "xfce" in xdg:
+            return "XFCE"
         try:
-            pgrep = subprocess.check_output(["pgrep", "-l", "gnome-session|ksmserver|xfce4-session|hyprland|sway"], encoding="utf-8")
-            if "gnome-session" in pgrep: return "GNOME"
-            if "ksmserver" in pgrep: return "KDE"
-            if "xfce4-session" in pgrep: return "XFCE"
-            if "hyprland" in pgrep: return "Hyprland"
-            if "sway" in pgrep: return "Sway"
-        except: pass
+            pgrep = subprocess.check_output(
+                ["pgrep", "-l", "gnome-session|ksmserver|xfce4-session|hyprland|sway"],
+                encoding="utf-8",
+            )
+            if "gnome-session" in pgrep:
+                return "GNOME"
+            if "ksmserver" in pgrep:
+                return "KDE"
+            if "xfce4-session" in pgrep:
+                return "XFCE"
+            if "hyprland" in pgrep:
+                return "Hyprland"
+            if "sway" in pgrep:
+                return "Sway"
+        except:
+            pass
         return xdg.capitalize() or "Unknown"
 
     @staticmethod
     def _get_gpu_vendor():
         try:
-            if os.path.exists("/proc/driver/nvidia/version"): return "Nvidia"
-            output = subprocess.check_output("glxinfo | grep -i renderer", shell=True, stderr=subprocess.DEVNULL).decode()
+            if os.path.exists("/proc/driver/nvidia/version"):
+                return "Nvidia"
+            output = subprocess.check_output(
+                "glxinfo | grep -i renderer", shell=True, stderr=subprocess.DEVNULL
+            ).decode()
             for v in ["NVIDIA", "AMD", "Radeon", "Intel", "Mesa"]:
-                if v.upper() in output.upper(): return v
-        except: pass
+                if v.upper() in output.upper():
+                    return v
+        except:
+            pass
         return "Unknown"
 
     @staticmethod
@@ -372,14 +516,24 @@ Terminal=false
 
     @staticmethod
     def _ensure_kde_plugin_installed():
-        dest = os.path.expanduser("~/.local/share/plasma/wallpapers/org.wengine.pro.wallpaper")
-        if os.path.exists(dest): return
+        dest = os.path.expanduser(
+            "~/.local/share/plasma/wallpapers/org.wengine.pro.wallpaper"
+        )
+        if os.path.exists(dest):
+            return
         appdir = os.environ.get("APPDIR", os.path.dirname(os.path.dirname(__file__)))
-        src = os.path.join(appdir, "usr/share/wengine/Clonar kde/plasma-smart-video-wallpaper-reborn-main/package")
+        src = os.path.join(
+            appdir,
+            "usr/share/wengine/Clonar kde/plasma-smart-video-wallpaper-reborn-main/package",
+        )
         if not os.path.exists(src):
-            src = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Clonar kde/plasma-smart-video-wallpaper-reborn-main/package")
+            src = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                "Clonar kde/plasma-smart-video-wallpaper-reborn-main/package",
+            )
         if os.path.exists(src):
             try:
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 shutil.copytree(src, dest)
-            except: pass
+            except:
+                pass

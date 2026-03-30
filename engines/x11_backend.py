@@ -1,13 +1,14 @@
-import os
-import time
-import re
-import socket
 import json
 import logging
+import os
+import re
+import socket
 import subprocess
-from engines.base_backend import BaseBackend
-from core.process_manager import ProcessManager
+import time
+
 from core.logger import log_event
+from core.process_manager import ProcessManager
+from engines.base_backend import BaseBackend
 
 
 class X11Backend(BaseBackend):
@@ -21,14 +22,9 @@ class X11Backend(BaseBackend):
         self.base_socket_path = "/tmp/mpv-bg-socket"
         self.active_sockets = []
 
-        # Locate binaries natively
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        local_xwinwrap = os.path.join(base_dir, "xwinwrap_src", "xwinwrap")
-
-        if os.path.exists(local_xwinwrap):
-            self.xwinwrap_bin = local_xwinwrap
-        else:
-            self.xwinwrap_bin = "xwinwrap"
+        # Do not use xwinwrap anymore: render directly into the root window.
+        # This avoids compositor compatibility issues (BadMatch) caused by xwinwrap flags.
+        self.use_xwinwrap = False
 
     def start(self, config, video_path):
         self.stop()
@@ -36,6 +32,7 @@ class X11Backend(BaseBackend):
 
         # 1. OPTIMIZACIÓN: Set static blur background before engine load for smooth transition
         from core.desktop_helper import DesktopHelper
+
         DesktopHelper.set_static_blur_background(video_path)
 
         layout_mode = config.get_setting("layout_mode", "Individual")
@@ -50,7 +47,128 @@ class X11Backend(BaseBackend):
 
         # MPV Binary (Native System)
         mpv_bin = "mpv"
+        overall_success = False
 
+        # Prefer detecting the desktop window (_NET_WM_WINDOW_TYPE_DESKTOP) via python-xlib.
+        # If that fails, fallback to xwininfo, then to the root window id. Use final_wid for mpv --wid.
+        root_wid = None
+
+        # First try python-xlib and look explicitly for a window with _NET_WM_WINDOW_TYPE_DESKTOP
+        try:
+            from Xlib import X, Xatom
+            from Xlib import display as xdisplay
+
+            d = xdisplay.Display()
+            root = d.screen().root
+
+            # Atoms
+            NET_WM_WINDOW_TYPE = d.intern_atom(
+                "_NET_WM_WINDOW_TYPE", only_if_exists=True
+            )
+            NET_WM_WINDOW_TYPE_DESKTOP = d.intern_atom(
+                "_NET_WM_WINDOW_TYPE_DESKTOP", only_if_exists=True
+            )
+
+            found = None
+            if NET_WM_WINDOW_TYPE and NET_WM_WINDOW_TYPE_DESKTOP:
+                # BFS search through window tree to find a desktop window
+                try:
+                    stack = [root]
+                    while stack and not found:
+                        win = stack.pop(0)
+                        try:
+                            prop = win.get_full_property(
+                                NET_WM_WINDOW_TYPE, X.AnyPropertyType
+                            )
+                        except Exception:
+                            prop = None
+                        if prop:
+                            # prop.value may be a sequence of atom integers
+                            vals = prop.value
+                            # compare atom ids
+                            if NET_WM_WINDOW_TYPE_DESKTOP in vals:
+                                found = win.id
+                                break
+                        # push children
+                        try:
+                            children = win.query_tree().children
+                            stack.extend(children)
+                        except Exception:
+                            # ignore windows we cannot inspect
+                            pass
+                except Exception:
+                    logging.exception(
+                        "[X11Backend] error scanning window tree for desktop window"
+                    )
+
+            if found:
+                root_wid = int(found)
+                logging.info(
+                    f"[X11Backend] desktop window WID from python-xlib: {root_wid}"
+                )
+            else:
+                logging.debug(
+                    "[X11Backend] python-xlib did not find a _NET_WM_WINDOW_TYPE_DESKTOP window"
+                )
+        except Exception:
+            logging.exception(
+                "[X11Backend] python-xlib lookup for desktop window failed (continuing to fallbacks)"
+            )
+
+        # If python-xlib didn't find a desktop window, try xwininfo -root as a fallback
+        if not root_wid:
+            try:
+                out = subprocess.check_output(
+                    ["xwininfo", "-root"], stderr=subprocess.DEVNULL
+                ).decode(errors="ignore")
+                # Prefer explicit "Window id: 0x..." line (case-insensitive)
+                m = re.search(r"window id:\s*(0x[0-9a-fA-F]+)", out, re.IGNORECASE)
+                if not m:
+                    m = re.search(r"(0x[0-9a-fA-F]+)", out)
+                if m:
+                    try:
+                        root_wid = int(m.group(1), 16)
+                        logging.info(
+                            f"[X11Backend] root WID from xwininfo: {m.group(1)} -> {root_wid}"
+                        )
+                    except Exception:
+                        logging.exception(
+                            "[X11Backend] failed to parse hex WID from xwininfo"
+                        )
+            except FileNotFoundError:
+                logging.error(
+                    "[X11Backend] xwininfo not found; please install x11-utils (xwininfo) and try again."
+                )
+            except Exception:
+                logging.exception(
+                    "[X11Backend] error obtaining root window id via xwininfo"
+                )
+
+        # As a last resort, if python-xlib is available but previous search failed, fall back to the display root id
+        if not root_wid:
+            try:
+                from Xlib import display as xdisplay2
+
+                d2 = xdisplay2.Display()
+                root_wid = int(d2.screen().root.id)
+                logging.info(
+                    f"[X11Backend] fallback root WID from python-xlib root: {root_wid}"
+                )
+            except Exception:
+                logging.exception(
+                    "[X11Backend] final python-xlib fallback failed to obtain root WID"
+                )
+
+        if not root_wid or root_wid == 0:
+            logging.error(
+                "[X11Backend] root/window id invalid; aborting X11 start without a valid WID."
+            )
+            return False
+
+        # Use final_wid (decimal string) for mpv
+        final_wid = str(root_wid)
+
+        # Use root_wid for all geometries
         for i, (geo, name) in enumerate(xwin_geometries):
             socket_path = f"{self.base_socket_path}-{i}"
             if os.path.exists(socket_path):
@@ -59,13 +177,10 @@ class X11Backend(BaseBackend):
                 except OSError:
                     pass
 
-            xwin_args = ["-g", geo] if geo != "-fs" else ["-fs"]
-            # Flags universales: -ni (sin input), -b (debajo), -nf (sin foco), -ov (override-redirect)
-            xwin_cmd = [self.xwinwrap_bin] + xwin_args + ["-ni", "-b", "-nf", "-ov", "-st", "-sp"]
-            xwin_cmd += ["--", mpv_bin]
-
             mpv_args = self._build_mpv_args(config, socket_path)
-            full_cmd = xwin_cmd + mpv_args + [video_path]
+            # Replace placeholder with actual root window id (decimal)
+            mpv_args = [a.replace("%WID", str(root_wid)) for a in mpv_args]
+            full_cmd = [mpv_bin] + mpv_args + [video_path]
 
             # AISLAMIENTO DE ENTORNO:
             # Limpiamos variables de portabilidad para que mpv use librerías del sistema
@@ -81,8 +196,16 @@ class X11Backend(BaseBackend):
                     del env[var]
 
             proc_id = f"x11-wallpaper-{i}"
+            # Start mpv directly embedding into the root window
             self.proc_manager.start(proc_id, full_cmd, env=env)
             self.active_sockets.append(socket_path)
+
+            # Wait briefly to see if the mpv-created IPC socket appears and mark success
+            for _ in range(15):
+                if os.path.exists(socket_path):
+                    overall_success = True
+                    break
+                time.sleep(0.1)
 
         self._wait_for_ipc()
 
@@ -96,7 +219,7 @@ class X11Backend(BaseBackend):
         if "xfce" in os.environ.get("XDG_CURRENT_DESKTOP", "").lower():
             threading.Thread(target=refresh, daemon=True).start()
 
-        return True
+        return overall_success
 
     def _wait_for_ipc(self):
         for _ in range(25):
