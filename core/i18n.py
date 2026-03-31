@@ -30,6 +30,7 @@ TRANSLATIONS = {
         "remove": "Remove",
         "apply": "Apply",
         "apply_now": "Apply Now",
+        "start": "Start",
         "stop": "Stop",
         "stop_all": "Stop All",
         
@@ -216,6 +217,7 @@ TRANSLATIONS = {
         "remove": "Eliminar",
         "apply": "Aplicar",
         "apply_now": "Aplicar Ahora",
+        "start": "Iniciar",
         "stop": "Detener",
         "stop_all": "Detener Todo",
         
@@ -261,15 +263,7 @@ TRANSLATIONS = {
         "select_color": "Seleccionar Color",
         "accent_color": "Color Acento",
         "custom_colors": "Colores Personalizados",
-        "engine_settings": "Motor de Wallpaper",
-        "interface_settings": "Interfaz",
-        "language_changed": "Idioma cambiado",
-        "language_changed_msg": "Algunas etiquetas se actualizaron. Reinicie para aplicar todos los cambios.",
-        "disabled": "Desactivado",
-        "pause_window": "Ventana Activa",
-        "pause_maximized": "Ventana Maximizada",
-        "pause_fullscreen": "Pantalla Completa",
-        
+         
         # Themes
         "dark": "Oscuro",
         "light": "Claro",

@@ -36,7 +36,7 @@ class BackgroundManager:
                 client.connect(SOCKET_PATH)
                 client.sendall((json.dumps({"command": command}) + "\n").encode())
             return True
-        except:
+        except (OSError, ConnectionRefusedError, json.JSONDecodeError):
             return False
 
     def get_window_info(self):
@@ -56,7 +56,7 @@ class BackgroundManager:
             is_fs = state and self.FULLSCREEN in state.value
 
             return is_desktop, is_fs
-        except:
+        except (X.error, AttributeError, IndexError):
             return True, False
 
     def manage_bg(self, is_desktop, is_fs):

@@ -137,7 +137,7 @@ class RendererManager:
                 return "Disk", "low_ram"
             if file_size_mb < 200 and available_gb > 2:
                 return "Memory", "light_video"
-        except:
+        except (OSError, KeyError, ValueError):
             pass
         return "Disk", "heavy_video"
 

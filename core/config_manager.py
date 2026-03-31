@@ -54,10 +54,7 @@ class ConfigManager(QObject):
             if key.startswith("_"):
                 return
 
-            if not self.save_timer.isActive():
-                self.save_timer.start(500)
-            else:
-                self.save_timer.start(500)
+            self.save_timer.start(500)
 
     def get_volatile(self, key, default=None):
         """Gets a volatile setting (those starting with _)."""

@@ -34,4 +34,16 @@ class EventBus(QObject):
         Note: For QObjects, prefer connecting directly to signals if possible,
         but this allows dynamic event names.
         """
-        pass
+        if event_name not in self.subscribers:
+            self.subscribers[event_name] = []
+        self.subscribers[event_name].append(callback)
+        self.event_occurred.connect(lambda name, data: self._dispatch(name, data))
+
+    def _dispatch(self, event_name, data):
+        """Dispatches event to all subscribed callbacks."""
+        if event_name in self.subscribers:
+            for callback in self.subscribers[event_name]:
+                try:
+                    callback(data)
+                except Exception as e:
+                    logging.error(f"Error in event callback for {event_name}: {e}")

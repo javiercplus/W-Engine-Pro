@@ -247,7 +247,7 @@ Terminal=false
                 .strip("'")
             )
             return uri, uri_dark
-        except:
+        except (subprocess.CalledProcessError, FileNotFoundError, UnicodeDecodeError, AttributeError):
             return None, None
 
     @staticmethod
@@ -273,7 +273,7 @@ Terminal=false
                 .strip()
             )
             return path, None
-        except:
+        except (subprocess.CalledProcessError, FileNotFoundError, StopIteration):
             return None, None
 
     @staticmethod
@@ -429,20 +429,24 @@ Terminal=false
                         blurred = img.filter(ImageFilter.GaussianBlur(radius=15))
                         blurred.save(bg_path)
                     DesktopHelper.set_background(bg_path)
-            except:
+            except (IOError, OSError):
                 pass
 
         threading.Thread(target=_worker, daemon=True).start()
 
     @staticmethod
     def _get_protocol():
-        # GNOME Xorg a veces deja variables de Wayland. Priorizamos X11 si DISPLAY está presente.
-        if os.environ.get("DISPLAY"):
-            return "x11"
+        compositor = DesktopHelper._get_compositor()
+        
+        if compositor in ["Sway", "Hyprland", "River", "Wayfire", "Openbox"]:
+            return "wayland"
+        
         if os.environ.get("WAYLAND_DISPLAY"):
             return "wayland"
+        
+        if os.environ.get("DISPLAY"):
+            return "x11"
 
-        # Fallback a loginctl
         try:
             res = subprocess.check_output(
                 ["loginctl", "show-session", "self", "-p", "Type"], text=True
@@ -451,7 +455,7 @@ Terminal=false
                 return "x11"
             if "Type=wayland" in res:
                 return "wayland"
-        except:
+        except (subprocess.CalledProcessError, FileNotFoundError):
             pass
 
         return "x11"
@@ -483,8 +487,8 @@ Terminal=false
             if "hyprland" in pgrep:
                 return "Hyprland"
             if "sway" in pgrep:
-                return "Sway"
-        except:
+                pass
+        except (subprocess.CalledProcessError, FileNotFoundError):
             pass
         return xdg.capitalize() or "Unknown"
 
@@ -494,12 +498,13 @@ Terminal=false
             if os.path.exists("/proc/driver/nvidia/version"):
                 return "Nvidia"
             output = subprocess.check_output(
-                "glxinfo | grep -i renderer", shell=True, stderr=subprocess.DEVNULL
+                ["glxinfo"], stderr=subprocess.DEVNULL
             ).decode()
+            output_lower = output.lower()
             for v in ["NVIDIA", "AMD", "Radeon", "Intel", "Mesa"]:
-                if v.upper() in output.upper():
+                if v.lower() in output_lower:
                     return v
-        except:
+        except (subprocess.CalledProcessError, FileNotFoundError, UnicodeDecodeError):
             pass
         return "Unknown"
 
@@ -532,5 +537,5 @@ Terminal=false
             try:
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 shutil.copytree(src, dest)
-            except:
+            except (OSError, shutil.Error):
                 pass

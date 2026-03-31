@@ -16,8 +16,11 @@ from PySide6.QtWidgets import (
     QFontComboBox,
     QMessageBox,
     QGroupBox,
+    QApplication,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QProcess
+from PySide6.QtGui import QColor
+import sys
 from PySide6.QtGui import QColor
 
 from core import i18n
@@ -119,12 +122,20 @@ class CustomizationSection(QWidget):
         self.config.set("language", lang_code)
         
         i18n.set_language(lang_code)
-        # Try to update UI texts immediately
-        self._retranslate_ui()
-        parent = self.parent()
-        if parent and hasattr(parent, "_retranslate_ui"):
-            parent._retranslate_ui()
-        QMessageBox.information(self, i18n.t("language_changed"), i18n.t("language_changed_msg"))
+        
+        from core.config_manager import ConfigManager
+        if isinstance(self.config, ConfigManager):
+            self.config._save()
+        
+        QMessageBox.information(
+            self, 
+            i18n.t("language_changed"), 
+            i18n.t("language_changed_msg")
+        )
+        
+        import os
+        QProcess.startDetached(sys.executable, [sys.executable] + sys.argv)
+        os._exit(0)
     
     def _on_theme_changed(self, theme_name):
         # Keep existing preset mappings but do not rely on hardcoded language

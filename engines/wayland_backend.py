@@ -84,24 +84,24 @@ class WaylandBackend(BaseBackend):
                 config, socket_path, wid_needed=False
             )
             
-            # Identificador único para encontrar la ventana después
             app_id = "W-Engine-Wallpaper"
             
             cmd += [
                 "--gpu-context=wayland",
                 "--force-window=yes",
+                "--no-border",
                 f"--wayland-app-id={app_id}",
                 f"--title={app_id}",
                 video_path,
             ]
             
-            # Iniciar proceso con el entorno correcto
             self.proc_manager.start("wayland-fallback", cmd, env=use_env)
             self.active_sockets = [socket_path]
             
-            # Si es KDE, aplicar reglas de ventana para simular wallpaper nativo
             if is_kde:
                 self._apply_kde_window_rules(app_id)
+            else:
+                self._apply_wayland_window_rules(app_id)
             
             return self._wait_for_ipc()
 
@@ -198,6 +198,160 @@ class WaylandBackend(BaseBackend):
                 logging.error(f"Error aplicando reglas de ventana KDE: {e}")
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    def _apply_wayland_window_rules(self, app_id):
+        """Usa swaymsg (u otros comandos de compositor) para configurar la ventana como wallpaper."""
+        import subprocess
+        import threading
+
+        def _worker():
+            time.sleep(1.5)
+            
+            compositor = self._detect_compositor()
+            
+            if compositor == "sway":
+                self._apply_sway_rules(app_id)
+            elif compositor == "hyprland":
+                self._apply_hyprland_rules(app_id)
+            else:
+                logging.warning(f"[WaylandBackend] Compositor {compositor} no soportado para reglas de ventana")
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _detect_compositor(self):
+        """Detecta qué compositor Wayland está en uso."""
+        compositor = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+        if "sway" in compositor:
+            return "sway"
+        if "hyprland" in compositor:
+            return "hyprland"
+        if "gnome" in compositor:
+            return "gnome"
+        if "kde" in compositor or "plasma" in compositor:
+            return "kde"
+        # También verificar SWAYSOCK
+        if os.path.exists(os.environ.get("SWAYSOCK", "/run/user/1000/sway.sock")):
+            return "sway"
+        if os.path.exists(os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", "")):
+            return "hyprland"
+        return "unknown"
+
+    def _apply_sway_rules(self, app_id):
+        """Aplica reglas de ventana específicas para Sway."""
+        import subprocess
+        
+        try:
+            time.sleep(2.0)
+            
+            result = subprocess.run(
+                ["swaymsg", "-t", "get_tree"],
+                capture_output=True, text=True, timeout=3
+            )
+            
+            if result.returncode != 0:
+                logging.warning("[WaylandBackend] swaymsg get_tree failed")
+                return
+            
+            import json
+            tree = json.loads(result.stdout)
+            
+            window_id = None
+            outputs = tree.get("nodes", [])
+            for output in outputs:
+                for node_type in ["nodes", "floating_nodes"]:
+                    for node in output.get(node_type, []):
+                        if self._find_window_by_app_id(node, app_id):
+                            window_id = self._find_window_by_app_id(node, app_id)
+                            break
+                    if window_id:
+                        break
+                if window_id:
+                    break
+            
+            if not window_id:
+                logging.warning(f"[WaylandBackend] No se encontró ventana con app_id={app_id}")
+                return
+            
+            logging.info(f"[WaylandBackend] Encontrada ventana {window_id} para {app_id}")
+            
+            commands = [
+                f"[con_id={window_id}] floating enable",
+                f"[con_id={window_id}] border none",
+                f"[con_id={window_id}] fullscreen enable",
+            ]
+            
+            for cmd in commands:
+                res = subprocess.run(
+                    ["swaymsg", cmd],
+                    capture_output=True, text=True, timeout=2
+                )
+                if res.returncode != 0:
+                    logging.warning(f"[WaylandBackend] swaymsg failed: {cmd} - {res.stderr}")
+            
+            logging.info(f"[WaylandBackend] Aplicadas reglas de Sway para {app_id}")
+            
+        except subprocess.TimeoutExpired:
+            logging.warning("[WaylandBackend] Timeout aplicando reglas Sway")
+        except FileNotFoundError:
+            logging.warning("[WaylandBackend] swaymsg no encontrado")
+        except Exception as e:
+            logging.error(f"[WaylandBackend] Error aplicando reglas Sway: {e}")
+    
+    def _find_window_by_app_id(self, node, app_id):
+        """Busca recursivamente una ventana por app_id en el árbol de Sway."""
+        if isinstance(node, dict):
+            if node.get("app_id") == app_id or node.get("window_properties", {}).get("class") == app_id:
+                return node.get("id")
+            for key in ["nodes", "floating_nodes", "focus"]:
+                if key in node:
+                    for child in node[key]:
+                        result = self._find_window_by_app_id(child, app_id)
+                        if result:
+                            return result
+        return None
+
+    def _apply_hyprland_rules(self, app_id):
+        """Aplica reglas de ventana específicas para Hyprland."""
+        import subprocess
+        
+        try:
+            # Hyprctl para buscar y configurar ventanas
+            result = subprocess.run(
+                ["hyprctl", "clients", "-j"],
+                capture_output=True, text=True, timeout=2
+            )
+            
+            if result.returncode == 0:
+                import json
+                try:
+                    clients = json.loads(result.stdout)
+                    for client in clients:
+                        if app_id in (client.get("class", "") + client.get("title", "")):
+                            addr = client.get("address", "")
+                            # Aplicar reglas
+                            subprocess.run(
+                                ["hyprctl", "dispatcher", "setprop", addr, "watermark", "true"],
+                                capture_output=True
+                            )
+                            subprocess.run(
+                                ["hyprctl", "dispatcher", "setprop", addr, "noBorder", "true"],
+                                capture_output=True
+                            )
+                            subprocess.run(
+                                ["hyprctl", "dispatcher", "setprop", addr, "fullscreen", "true"],
+                                capture_output=True
+                            )
+                            logging.info(f"[WaylandBackend] Aplicadas reglas de Hyprland para {app_id}")
+                            break
+                except json.JSONDecodeError:
+                    pass
+                    
+        except subprocess.TimeoutExpired:
+            logging.warning("[WaylandBackend] Timeout aplicando reglas Hyprland")
+        except FileNotFoundError:
+            logging.warning("[WaylandBackend] hyprctl no encontrado")
+        except Exception as e:
+            logging.error(f"[WaylandBackend] Error aplicando reglas Hyprland: {e}")
 
     def _wait_for_ipc(self):
         for _ in range(10):

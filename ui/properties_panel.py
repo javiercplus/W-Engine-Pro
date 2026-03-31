@@ -24,6 +24,7 @@ class PropertiesPanel(QWidget):
     propertyChanged = Signal(str, Any)
     removeRequested = Signal()
     stopAllRequested = Signal()
+    startRequested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -54,7 +55,7 @@ class PropertiesPanel(QWidget):
         self.stop_btn = QPushButton(i18n.t("stop"))
         self.stop_btn.setObjectName("stop_btn")
         self.stop_btn.setCursor(Qt.PointingHandCursor)
-        self.stop_btn.clicked.connect(self.stopAllRequested.emit)
+        self.stop_btn.clicked.connect(self._on_stop_btn_clicked)
         self.layout.addWidget(self.stop_btn)
 
         self.title_label = QLabel(i18n.t("no_selection"))
@@ -93,6 +94,18 @@ class PropertiesPanel(QWidget):
         for key, value in self._pending_updates.items():
             self.propertyChanged.emit(key, value)
         self._pending_updates.clear()
+
+    def _on_stop_btn_clicked(self):
+        if self.stop_btn.text() == i18n.t("stop"):
+            self.stopAllRequested.emit()
+        else:
+            self.startRequested.emit()
+
+    def update_stop_button_state(self, is_running):
+        if is_running:
+            self.stop_btn.setText(i18n.t("stop"))
+        else:
+            self.stop_btn.setText(i18n.t("start"))
 
     def create_properties_group(self):
         self.prop_group = QGroupBox(i18n.t("playback_settings"))

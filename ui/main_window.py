@@ -12,8 +12,8 @@ from PySide6.QtWidgets import (
     QApplication,
     QSizePolicy,
 )
-from PySide6.QtCore import Qt, QSize, QThread, Signal, QObject, Slot, QTimer
-from PySide6.QtGui import QIcon, QColor, QPalette, QKeyEvent
+from PySide6.QtCore import Qt, QSize, QThread, Signal, Slot, QTimer
+from PySide6.QtGui import QColor, QPalette, QKeyEvent
 from typing import Any
 import os
 import logging
@@ -115,6 +115,7 @@ class MainWindow(QMainWindow):
         self.props_panel.propertyChanged.connect(self.on_property_changed)
         self.props_panel.removeRequested.connect(self.on_remove_requested)
         self.props_panel.stopAllRequested.connect(self.on_stop_all)
+        self.props_panel.startRequested.connect(self.on_start_requested)
         self.content_splitter.addWidget(self.props_panel)
 
         self.selection_timer = QTimer(self)
@@ -287,9 +288,15 @@ class MainWindow(QMainWindow):
                 self.about_page.shadow.setEnabled(name == "about")
 
     def on_stop_all(self):
-        if self.controller:
+        if self.controller and self.controller.renderer.is_running():
             self.controller.stop_all()
         self.slideshow_timer.stop()
+        self.props_panel.update_stop_button_state(False)
+
+    def on_start_requested(self):
+        if self.current_playlist:
+            self._apply_selection(self.current_playlist)
+            self.props_panel.update_stop_button_state(True)
 
     def _start_library_loading(self):
         self.lib_page.grid.clear()

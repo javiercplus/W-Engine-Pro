@@ -382,7 +382,7 @@ class SettingsPage(BasePage):
             val = self.config.get("fps_limit", 60)
             try:
                 self.fps_limit.setValue(int(val))
-            except:
+            except (ValueError, TypeError):
                 self.fps_limit.setValue(60)
             self.fps_limit.valueChanged.connect(
                 lambda v: self.config.set("fps_limit", v)
@@ -431,35 +431,6 @@ class SettingsPage(BasePage):
     def _on_cache_mode_changed(self, text):
         val = "Memory" if "RAM" in text else "Disk"
         self.config.set("video_cache", val)
-
-    def _on_install_gnome_ext(self):
-        from core.desktop_helper import DesktopHelper
-        from PySide6.QtWidgets import QMessageBox
-
-        success, message = DesktopHelper.install_extension()
-        if success:
-            QMessageBox.information(self, i18n.t("gnome_helper"), message)
-            self.install_gnome_btn.setText(i18n.t("extension_installed"))
-        else:
-            QMessageBox.critical(
-                self, i18n.t("error_title"), f"{i18n.t('install_error')}: {message}"
-            )
-            info_label.setWordWrap(True)
-            info_label.setStyleSheet("color: #aaa; font-size: 11px;")
-            gnome_layout.addWidget(info_label)
-
-            self.install_gnome_btn = QPushButton(i18n.t("install_wallpaper_extension"))
-            if DesktopHelper.is_extension_installed():
-                self.install_gnome_btn.setText("Reinstalar / Actualizar Extensión")
-
-            self.install_gnome_btn.clicked.connect(self._on_install_gnome_ext)
-            gnome_layout.addWidget(self.install_gnome_btn)
-
-            container_layout.addWidget(gnome_group)
-
-        container_layout.addStretch()
-        scroll.setWidget(container)
-        self.layout.addWidget(scroll)
 
     def _on_install_gnome_ext(self):
         from core.desktop_helper import DesktopHelper

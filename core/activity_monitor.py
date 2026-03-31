@@ -59,7 +59,7 @@ class ActivityMonitor(QObject):
         if not self._display:
             try:
                 self._display = display.Display()
-            except:
+            except OSError:
                 return None
         return self._display
 
@@ -118,7 +118,7 @@ class ActivityMonitor(QObject):
                 pid_prop = win.get_full_property(NET_WM_PID, X.AnyPropertyType)
                 if pid_prop and pid_prop.value[0] == self._my_pid:
                     return False
-            except:
+            except (AttributeError, IndexError):
                 pass
 
             # 2. Window Type Check (Ignore Desktop and Panels/Docks)
@@ -128,7 +128,7 @@ class ActivityMonitor(QObject):
                     TYPE_DESKTOP in type_prop.value or TYPE_DOCK in type_prop.value
                 ):
                     return False
-            except:
+            except (AttributeError,):
                 pass
 
             # 3. WM_CLASS Check (Ignore System/Compositor windows)
@@ -145,7 +145,7 @@ class ActivityMonitor(QObject):
                     ]
                     if any(c in cls_name for c in ignored):
                         return False
-            except:
+            except (AttributeError,):
                 pass
 
             # 4. Mode-specific checks
