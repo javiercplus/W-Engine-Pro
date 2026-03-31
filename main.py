@@ -59,14 +59,19 @@ def main():
 
         tray_icon = QSystemTrayIcon(app_icon, app)
         tray_menu = QMenu()
+        
+        def update_tray_menu_style():
+            tray_menu.setStyleSheet(app.styleSheet())
+        
+        window.theme_changed.connect(update_tray_menu_style)
 
-        show_action = QAction("Mostrar Interfaz", app)
+        show_action = QAction("Show Interface", app)
         show_action.triggered.connect(window.showNormal)
 
-        pause_action = QAction("Pausar/Reanudar", app)
+        pause_action = QAction("Pause/Resume", app)
         pause_action.triggered.connect(lambda: controller.pause_all())
 
-        quit_action = QAction("Salir", app)
+        quit_action = QAction("Exit", app)
         quit_action.triggered.connect(app.quit)
 
         tray_menu.addAction(show_action)

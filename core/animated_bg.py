@@ -89,13 +89,6 @@ class BackgroundManager:
             .strip()
         )
         cmd = [
-            "xwinwrap",
-            "-ov",
-            "-b",
-            "-ni",
-            "-fs",
-            "-nf",
-            "--",
             "mpv",
             "--wid=%WID",
             "--loop",
@@ -116,7 +109,6 @@ class BackgroundManager:
         if self.bg_proc:
             self.bg_proc.terminate()
             self.bg_proc = None
-        subprocess.run(["pkill", "-f", "xwinwrap"], stderr=subprocess.DEVNULL)
         self.state = "STOPPED"
 
     def run(self):

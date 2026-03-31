@@ -22,9 +22,7 @@ class X11Backend(BaseBackend):
         self.base_socket_path = "/tmp/mpv-bg-socket"
         self.active_sockets = []
 
-        # Do not use xwinwrap anymore: render directly into the root window.
-        # This avoids compositor compatibility issues (BadMatch) caused by xwinwrap flags.
-        self.use_xwinwrap = False
+
 
     def start(self, config, video_path):
         self.stop()
@@ -199,11 +197,13 @@ class X11Backend(BaseBackend):
             # Start mpv directly embedding into the root window
             self.proc_manager.start(proc_id, full_cmd, env=env)
             self.active_sockets.append(socket_path)
+            logging.debug(f"[X11Backend] Added socket to active_sockets: {socket_path}")
 
             # Wait briefly to see if the mpv-created IPC socket appears and mark success
             for _ in range(15):
                 if os.path.exists(socket_path):
                     overall_success = True
+                    logging.debug(f"[X11Backend] IPC socket confirmed: {socket_path}")
                     break
                 time.sleep(0.1)
 
@@ -219,6 +219,7 @@ class X11Backend(BaseBackend):
         if "xfce" in os.environ.get("XDG_CURRENT_DESKTOP", "").lower():
             threading.Thread(target=refresh, daemon=True).start()
 
+        logging.debug(f"[X11Backend] start() complete. active_sockets: {self.active_sockets}")
         return overall_success
 
     def _wait_for_ipc(self):
@@ -295,7 +296,7 @@ class X11Backend(BaseBackend):
                 continue
             try:
                 with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-                    client.settimeout(0.05)
+                    client.settimeout(2.0)
                     client.connect(socket_path)
                     msg = {"command": [command] + list(args)}
                     client.sendall((json.dumps(msg) + "\n").encode())
@@ -352,14 +353,15 @@ class X11Backend(BaseBackend):
                 "--vo=gpu",
                 "--gpu-context=auto",
                 "--profile=low-latency",
-                "--untimed",
                 "--panscan=1.0",
                 "--keep-open=yes",
+                "--force-window=yes",
                 f"--input-ipc-server={socket_path}",
                 "--no-osc",
                 "--no-osd-bar",
                 "--no-input-default-bindings",
                 "--idle",
+                "--audio-fallback-to-null=yes",
             ]
         )
         if config.get_setting("_initial_pause", False):

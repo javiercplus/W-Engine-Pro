@@ -90,7 +90,6 @@ class DesktopHelper:
             "layer_shell": False,
             "root_window": False,
             "wayland_safe": False,
-            "needs_xwinwrap": False,
         }
 
         if protocol == "wayland":
@@ -99,8 +98,6 @@ class DesktopHelper:
                 capabilities["wayland_safe"] = True
         else:  # X11
             capabilities["root_window"] = True
-            if compositor in ["XFCE", "KDE", "MATE", "i3", "Openbox"]:
-                capabilities["needs_xwinwrap"] = True
 
         DesktopHelper._cached_profile = EnvironmentProfile(
             compositor, desktop, protocol, capabilities, gpu_vendor

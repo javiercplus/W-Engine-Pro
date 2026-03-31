@@ -48,7 +48,7 @@ class RendererManager:
             # GNOME: usar MPV integrado nativo
             return GnomeIntegratedEngine()
         elif best == "x11" or self.profile.protocol == "x11":
-            # X11: usar xwinwrap + MPV
+            # X11: usar mpv directo en root window
             return X11Backend()
         elif best == "mpvpaper":
             # Wayland con mpvpaper disponible
@@ -119,7 +119,9 @@ class RendererManager:
 
     def get_active_sockets(self):
         if hasattr(self.backend, "active_sockets"):
+            logging.debug(f"[RendererManager] get_active_sockets: {self.backend.active_sockets}")
             return self.backend.active_sockets
+        logging.debug("[RendererManager] get_active_sockets: backend has no active_sockets")
         return []
 
     def resolve_playback_mode(self, video_path):

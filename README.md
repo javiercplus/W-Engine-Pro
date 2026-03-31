@@ -1,85 +1,85 @@
-W-Engine-Pro
-Motor nativo de wallpapers animados para Linux. Alto rendimiento (Python 3.14 + Qt6), bajo consumo y formato AppImage universal. Pausa automática en juegos/pantalla completa.
+# W-Engine Pro
 
-<img width="1368" height="768" alt="Captura de pantalla_2026-03-17_22-51-53" src="https://github.com/user-attachments/assets/6fa054fb-7709-4970-980a-38535e39e4d8" />
+Native animated wallpaper engine for Linux. High performance (Python 3 + Qt6), low resource consumption and universal AppImage package. Automatic pause during games/fullscreen.
 
-<img width="1368" height="768" alt="Captura de pantalla_2026-03-17_22-51-31" src="https://github.com/user-attachments/assets/29d0edb9-62ac-42a5-b904-aac108a557c3" />
+![Screenshot 1](https://github.com/user-attachments/assets/6fa054fb-7709-4970-980a-38535e39e4d8)
+![Screenshot 2](https://github.com/user-attachments/assets/29d0edb9-62ac-42a5-b904-aac108a557c3)
+![Screenshot 3](https://github.com/user-attachments/assets/aa990bf3-2a93-4177-b9c2-eb86596b8492)
 
-<img width="1091" height="731" alt="Captura de pantalla_2026-03-17_22-52-09" src="https://github.com/user-attachments/assets/aa990bf3-2a93-4177-b9c2-eb86596c8492" />
+## Features
 
-W-Engine Pro es un motor de wallpapers dinámicos para Linux, diseñado para ofrecer una experiencia moderna, fluida y altamente personalizable, similar a Wallpaper Engine pero optimizado para entornos Linux.
+- Video wallpaper support
+- URL wallpapers (streaming)
+- Real-time changes (no restart needed)
+- Dynamic UI with Qt6
+- Reactive engine (event-driven)
+- Smart auto-save
+- Multi-monitor support
+- CPU/GPU optimization
+- Automatic pause on activity
 
-Descripción:
+## Compatibility
 
-W-Engine Pro nace con el objetivo de llevar la personalización del escritorio Linux a otro nivel, permitiendo el uso de fondos animados, contenido multimedia y wallpapers por URL sin sacrificar rendimiento.
+| Environment | Status |
+|-------------|--------|
+| KDE Plasma (X11) | Stable |
+| XFCE | Stable |
+| GNOME (X11) | Partial |
+| GNOME (Wayland) | Experimental |
+| Cinnamon | Stable |
+| Other Wayland | Experimental |
 
-El motor implementa un sistema inteligente de optimización que adapta el consumo de recursos según la actividad del sistema.
+## Requirements
 
-Características:
-Soporte para wallpapers en video
-Wallpapers mediante URL (streaming)
-Cambios en tiempo real (sin reiniciar)
-UI dinámica con Qt6
-Motor reactivo (event-driven)
-Auto-guardado inteligente
-Soporte multi-monitor
-Optimización de CPU/GPU
+### Python
+```bash
+pip install PySide6 psutil python-xlib Pillow
+```
 
-Funciones experimentales:
-Integración como fondo real del escritorio (sin cubrir iconos)
-Compatibilidad avanzada con distintos entornos
-Soporte parcial en Wayland (limitaciones del compositor)
+### System
+```bash
+# Arch Linux
+sudo pacman -S mpv xorg-xwininfo xorg-xrandr
 
-Compatibilidad:
-Entorno	Estado
-KDE Plasma (X11) Estable
-XFCE Estable
-GNOME (X11) Parcial
-Wayland Experimental
+# Debian/Ubuntu
+sudo apt install mpv x11-utils xrandr
 
-Tecnologías:
-Python 3.14
-Qt6 (PyQt / PySide)
-OpenGL / Video backend
-Arquitectura modular (Engine + UI desacoplados)
+# Fedora
+sudo dnf install mpv xorg-x11-utils xrandr
+```
 
-Arquitectura:
-El proyecto está dividido en módulos principales:
+> **Note:** `Pillow` is optional (only for static blur effect).
 
-core/
- ├── engine_controller.py
- ├── surface_manager.py
- └── config_manager.py
+## Usage
 
-ui/
- └── main_window.py
+```bash
+python main.py           # Normal mode
+python main.py --debug   # Debug mode with logs
+```
 
-EngineController → controla el motor de wallpapers
-SurfaceManager → renderizado y gestión de ventanas
-ConfigManager → configuración y estado
-UI (Qt) → interfaz gráfica
+## Architecture
 
-Estado actual:
-En desarrollo activo
+```
+core/                   # Core engine
+  engine_controller.py  # Main controller
+  renderer_manager.py   # Backend manager
+  process_manager.py   # Child process management
+  health_monitor.py     # IPC health monitor
+  activity_monitor.py   # Activity detector
 
-Se están implementando:
-Sistema de perfiles
-Mejor sincronización UI ↔ motor
-Soporte extendido para Wayland
-Optimización avanzada del render
+engines/                # Rendering backends
+  x11_backend.py        # X11 + mpv direct
+  wayland_backend.py    # Wayland + mpvpaper
+  gnome_mpv_backend/    # GNOME integrated
 
-Roadmap:
-Sistema de perfiles tipo Wallpaper Engine
-Plugins / extensiones
-Mejor integración con escritorios Linux
-UI más avanzada y personalizable
+ui/                     # Qt6 Interface
+  main_window.py        # Main window
+  sidebar.py            # Sidebar
+  pages.py              # Menu pages
 
-Autor:
-Desarrollado por Alexander
+threads/                # Worker threads
+```
 
-Licencia:
-Este proyecto está bajo la licencia GPLv3.
+## License
 
-Contribuciones:
-Las contribuciones son bienvenidas.
-Puedes abrir issues o pull requests para mejorar el proyecto.
+GPLv3

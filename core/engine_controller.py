@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any
 
 from PySide6.QtCore import QObject, QThread, QTimer, Slot
@@ -170,6 +171,7 @@ class EngineController(QObject):
             self.config.set_setting("last_wallpaper", video_path)
 
         self.active_wallpapers[monitor_id] = video_path
+        self.health_monitor.trigger_grace_period(20.0)
         self.renderer.restart(self.config, video_path)
 
     def shutdown(self):
@@ -204,14 +206,20 @@ class EngineController(QObject):
 
         # Check IPC status for all active sockets
         active_sockets = self.renderer.get_active_sockets()
-        ipc_ok = True
+        ipc_ok = False
         if active_sockets:
             for s in active_sockets:
-                if not self.health_monitor._check_ipc(s):
-                    ipc_ok = False
+                try:
+                    if os.path.exists(s) and self.health_monitor._check_ipc(s):
+                        ipc_ok = True
+                        break
+                    else:
+                        logging.debug(f"[Diagnostics] IPC check failed for {s}")
+                except Exception as e:
+                    logging.debug(f"[Diagnostics] IPC check error: {e}")
                     break
         else:
-            ipc_ok = False
+            logging.debug("[Diagnostics] No active sockets found")
 
         return {
             "backend": self.renderer.backend.__class__.__name__,

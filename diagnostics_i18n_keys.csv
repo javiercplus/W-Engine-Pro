@@ -1,0 +1,13 @@
+key,en,es
+system_actions,System Actions,Acciones del Sistema
+restart_engine,Restart Engine,Reiniciar Motor
+force_safe_mode,Force Safe Mode,Forzar Modo Seguro
+gpu_vendor,GPU Vendor,Proveedor de GPU
+ram_usage,RAM Usage,Uso de RAM
+cpu_usage,CPU Usage,Uso de CPU
+cache_status,Cache,Cache
+label_units,Units,Unidades
+resolved_mode,Resolved Mode,Modo Resuelto
+cache_config,Cache Config,Configuración de Cache
+cpu_load,CPU Load,Carga de CPU
+copied,Copied to Clipboard!,¡Copiado al Portapapeles!

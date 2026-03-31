@@ -20,12 +20,14 @@ import logging
 import random
 
 from ui.sidebar import Sidebar
-from ui.pages import LibraryPage, MonitorPage, DesignPage, SettingsPage, AboutPage
+from ui.pages import LibraryPage, MonitorPage, AboutPage
+from ui.settings_panel import SettingsPanel
 from ui.diagnostics_panel import DiagnosticsPanel
 from ui.properties_panel import PropertiesPanel
 from ui.url_dialog import UrlDialog
 from ui.styles import STYLE_TEMPLATE
 from core.event_bus import EventBus
+from core import i18n
 
 
 class LibraryLoaderWorker(QThread):
@@ -48,13 +50,15 @@ class LibraryLoaderWorker(QThread):
 
 
 class MainWindow(QMainWindow):
+    theme_changed = Signal()
+    
     def __init__(self, controller=None, config=None, resources=None):
         super().__init__()
         self.controller = controller
         self.config = config
         self.resources = resources
 
-        self.setWindowTitle("W-Engine Pro")
+        self.setWindowTitle(i18n.t("app_name"))
         self.resize(1200, 800)
 
         # Explicitly set window flags to ensure maximize button is available
@@ -78,7 +82,6 @@ class MainWindow(QMainWindow):
 
         self.sidebar = Sidebar()
         self.sidebar.pageChanged.connect(self.switch_page)
-        self.sidebar.stopAllRequested.connect(self.on_stop_all)
         self.sidebar.fullscreenRequested.connect(self.toggle_fullscreen)
         self.main_v_layout.addWidget(self.sidebar)
 
@@ -94,16 +97,14 @@ class MainWindow(QMainWindow):
         self.lib_page.addUrlRequested.connect(self.open_url_dialog)
 
         self.mon_page = MonitorPage(config=self.config)
-        self.design_page = DesignPage(config=self.config)
         self.diag_page = DiagnosticsPanel(controller=self.controller)
-        self.settings_page = SettingsPage(
+        self.settings_page = SettingsPanel(
             config=self.config, controller=self.controller
         )
         self.about_page = AboutPage()
 
         self.pages.addWidget(self.lib_page)
         self.pages.addWidget(self.mon_page)
-        self.pages.addWidget(self.design_page)
         self.pages.addWidget(self.diag_page)
         self.pages.addWidget(self.settings_page)
         self.pages.addWidget(self.about_page)
@@ -113,6 +114,7 @@ class MainWindow(QMainWindow):
         self.props_panel = PropertiesPanel()
         self.props_panel.propertyChanged.connect(self.on_property_changed)
         self.props_panel.removeRequested.connect(self.on_remove_requested)
+        self.props_panel.stopAllRequested.connect(self.on_stop_all)
         self.content_splitter.addWidget(self.props_panel)
 
         self.selection_timer = QTimer(self)
@@ -251,6 +253,8 @@ class MainWindow(QMainWindow):
         else:
             self.setStyleSheet(style_sheet)
 
+        self.theme_changed.emit()
+
         # 6. Palette sync for native dialogs
         palette = self.palette()
         q_accent = QColor(accent_color)
@@ -270,7 +274,6 @@ class MainWindow(QMainWindow):
         widgets = {
             "library": self.lib_page,
             "monitors": self.mon_page,
-            "design": self.design_page,
             "diagnostics": self.diag_page,
             "settings": self.settings_page,
             "about": self.about_page,
@@ -401,12 +404,12 @@ class MainWindow(QMainWindow):
 
         if count == 1:
             item = self.lib_page.grid.model.item(unique_rows[0])
-            msg = f"¿Estás seguro de que deseas eliminar '{item.text()}'?"
+            msg = f"{i18n.t('confirm_delete_single').format(name=item.text())}"
         else:
-            msg = f"¿Estás seguro de que deseas eliminar {count} elemento(s)?"
+            msg = i18n.t('confirm_delete_multiple').format(count=count)
 
         res = QMessageBox.question(
-            self, "Confirmar Eliminación", msg, QMessageBox.Yes | QMessageBox.No
+            self, i18n.t('confirm_delete_title'), msg, QMessageBox.Yes | QMessageBox.No
         )
 
         if res == QMessageBox.Yes:

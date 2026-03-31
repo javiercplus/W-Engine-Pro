@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QTextEdit,
 )
 from PySide6.QtCore import Qt, QTimer
-
+import core.i18n as i18n
 
 class DiagnosticsPanel(QWidget):
     def __init__(self, controller):
@@ -34,10 +34,10 @@ class DiagnosticsPanel(QWidget):
         main_layout.addWidget(scroll)
 
         # Actions Area
-        actions_group = QGroupBox("System Actions")
+        actions_group = QGroupBox(i18n.t("system_actions"))
         actions_layout = QHBoxLayout(actions_group)
 
-        self.restart_btn = QPushButton("Restart Engine")
+        self.restart_btn = QPushButton(i18n.t("restart_engine"))
         self.restart_btn.clicked.connect(
             lambda: self.controller.renderer.restart(
                 self.controller.config,
@@ -49,10 +49,10 @@ class DiagnosticsPanel(QWidget):
             )
         )
 
-        self.safe_mode_btn = QPushButton("Force Safe Mode")
+        self.safe_mode_btn = QPushButton(i18n.t("force_safe_mode"))
         self.safe_mode_btn.clicked.connect(self._toggle_safe_mode)
 
-        self.export_btn = QPushButton("Export Diagnostic (JSON)")
+        self.export_btn = QPushButton(i18n.t("export_diagnostic"))
         self.export_btn.clicked.connect(self._export_to_clipboard)
 
         actions_layout.addWidget(self.restart_btn)
@@ -79,22 +79,22 @@ class DiagnosticsPanel(QWidget):
         self.status_labels = {}
 
         metrics = [
-            ("Backend", "backend"),
-            ("Protocol", "protocol"),
-            ("Compositor", "compositor"),
-            ("GPU Vendor", "gpu_vendor"),
-            ("IPC Status", "ipc_ok"),
-            ("Safe Mode", "safe_mode"),
-            ("Playback Mode", "playback_mode"),
-            ("Resolved Mode", "current_playback_mode"),
-            ("Cache Config", "cache_status"),
-            ("RAM Usage", "ram_usage_mb"),
-            ("CPU Load", "cpu_percent"),
+            ("backend", "backend"),
+            ("protocol", "protocol"),
+            ("compositor", "compositor"),
+            ("gpu_vendor", "gpu_vendor"),
+            ("ipc_status", "ipc_ok"),
+            ("safe_mode", "safe_mode"),
+            ("playback_mode", "playback_mode"),
+            ("resolved_mode", "current_playback_mode"),
+            ("cache_status", "cache_status"),
+            ("ram_usage", "ram_usage_mb"),
+            ("cpu_usage", "cpu_percent"),
         ]
 
-        for i, (label_text, key) in enumerate(metrics):
+        for i, (display_key, data_key) in enumerate(metrics):
             row, col = i // 3, i % 3
-            group = QGroupBox(label_text)
+            group = QGroupBox(i18n.t(display_key))
             layout = QVBoxLayout(group)
             val_label = QLabel("...")
             val_label.setAlignment(Qt.AlignCenter)
@@ -102,7 +102,7 @@ class DiagnosticsPanel(QWidget):
                 "font-size: 14px; font-weight: bold; color: #3498db;"
             )
             layout.addWidget(val_label)
-            self.status_labels[key] = val_label
+            self.status_labels[data_key] = val_label
             self.grid.addWidget(group, row, col)
 
     def refresh(self):
@@ -111,9 +111,9 @@ class DiagnosticsPanel(QWidget):
         for key, label in self.status_labels.items():
             val = data.get(key)
             if key == "ipc_ok":
-                val = "CONNECTED" if val else "FAILED"
+                val = i18n.t("connected") if val else i18n.t("failed")
             elif key == "safe_mode":
-                val = "ACTIVE" if val else "Normal"
+                val = i18n.t("active") if val else i18n.t("normal")
             elif key == "ram_usage_mb":
                 val = f"{val} MB"
             elif key == "cpu_percent":
@@ -148,7 +148,7 @@ class DiagnosticsPanel(QWidget):
         from PySide6.QtWidgets import QApplication
 
         QApplication.clipboard().setText(json_str)
-        self.export_btn.setText("Copied to Clipboard!")
+        self.export_btn.setText(i18n.t("copied"))
         QTimer.singleShot(
-            2000, lambda: self.export_btn.setText("Export Diagnostic (JSON)")
+            2000, lambda: self.export_btn.setText(i18n.t("export_diagnostic"))
         )

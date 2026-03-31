@@ -60,12 +60,15 @@ class HealthMonitor:
 
             all_ok = True
             for socket_path in active_sockets:
+                logging.debug(f"[HealthMonitor] Checking IPC socket: {socket_path}")
                 if os.path.exists(socket_path):
-                    if not self._check_ipc(socket_path):
+                    result = self._check_ipc(socket_path)
+                    logging.debug(f"[HealthMonitor] IPC check result: {result}")
+                    if not result:
                         all_ok = False
                         break
                 else:
-                    # If socket file is missing but engine should be running
+                    logging.debug(f"[HealthMonitor] Socket file missing: {socket_path}")
                     all_ok = False
                     break
 
@@ -94,15 +97,29 @@ class HealthMonitor:
 
             self._stop_event.wait(5.0)
 
-    def _check_ipc(self, socket_path):
-        """Pings a specific mpv IPC socket."""
-        try:
-            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-                client.settimeout(2.0)
-                client.connect(socket_path)
-                msg = {"command": ["get_property", "pause"]}
-                client.sendall((json.dumps(msg) + "\n").encode())
-                response = client.recv(1024)
-                return bool(response)
-        except:
-            return False
+    def _check_ipc(self, socket_path, retries=3):
+        """Pings a specific mpv IPC socket with retries."""
+        for attempt in range(retries):
+            try:
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                    client.settimeout(1.0)
+                    client.connect(socket_path)
+                    msg = {"command": ["get_property", "pause"]}
+                    client.sendall((json.dumps(msg) + "\n").encode())
+                    response = client.recv(4096)
+                    if response:
+                        try:
+                            data = json.loads(response.decode())
+                            logging.debug(f"[HealthMonitor] IPC response: {data}")
+                            return data.get("error") == "success"
+                        except json.JSONDecodeError:
+                            logging.debug(f"[HealthMonitor] IPC non-JSON response: {response[:100]}")
+                            return True
+                    return False
+            except Exception as e:
+                if attempt < retries - 1:
+                    time.sleep(0.1)
+                    continue
+                logging.debug(f"[HealthMonitor] IPC check failed: {e}")
+                return False
+        return False

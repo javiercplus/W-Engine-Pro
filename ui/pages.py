@@ -22,6 +22,8 @@ from PySide6.QtGui import QIcon, QColor, QDesktopServices, QPixmap
 from ui.wallpaper_grid import WallpaperGrid
 import os
 
+from core import i18n
+
 
 class BasePage(QWidget):
     def __init__(self, title, parent=None):
@@ -36,16 +38,16 @@ class LibraryPage(BasePage):
     addUrlRequested = Signal()
 
     def __init__(self, parent=None):
-        super().__init__("Biblioteca", parent)
+        super().__init__(i18n.t("library"), parent)
 
         action_bar = QHBoxLayout()
 
-        self.add_url_btn = QPushButton("Añadir desde URL")
+        self.add_url_btn = QPushButton(i18n.t("add_url"))
         self.add_url_btn.setIcon(QIcon.fromTheme("list-add"))
         self.add_url_btn.clicked.connect(self.addUrlRequested.emit)
         action_bar.addWidget(self.add_url_btn)
 
-        self.open_folder_btn = QPushButton("Abrir carpeta")
+        self.open_folder_btn = QPushButton(i18n.t("open_folder"))
         self.open_folder_btn.setIcon(QIcon.fromTheme("folder-open"))
         self.open_folder_btn.clicked.connect(self.open_wallpaper_folder)
         action_bar.addWidget(self.open_folder_btn)
@@ -57,7 +59,7 @@ class LibraryPage(BasePage):
         self.grid.clicked.connect(self.wallpaperSelected.emit)
         self.layout.addWidget(self.grid)
 
-        self.selection_tray = QGroupBox("Fondos Seleccionados")
+        self.selection_tray = QGroupBox(i18n.t("selection_tray"))
         self.selection_tray.setMaximumHeight(180)
         tray_layout = QVBoxLayout(self.selection_tray)
 
@@ -91,27 +93,27 @@ class LibraryPage(BasePage):
 
 class MonitorPage(BasePage):
     def __init__(self, config=None, parent=None):
-        super().__init__("Monitores", parent)
+        super().__init__(i18n.t("monitors"), parent)
         self.config = config
 
-        group = QGroupBox("Configuración de Pantallas")
+        group = QGroupBox(i18n.t("display_settings"))
         form = QFormLayout(group)
 
         self.monitor_combo = QComboBox()
-        self.monitor_combo.addItems(["Auto", "Pantalla 1", "Pantalla 2"])
+        self.monitor_combo.addItems([i18n.t("auto"), i18n.t("screen_1"), i18n.t("screen_2")])
         if self.config:
             self.monitor_combo.setCurrentText(self.config.get("target_monitor", "Auto"))
             self.monitor_combo.currentTextChanged.connect(
                 lambda v: self.config.set("target_monitor", v)
             )
-        form.addRow("Seleccionar Monitor:", self.monitor_combo)
+        form.addRow(i18n.t("select_monitor") + ":", self.monitor_combo)
 
         self.layout.addWidget(group)
 
-        layout_group = QGroupBox("Modo de Disposición")
+        layout_group = QGroupBox(i18n.t("layout_mode"))
         layout_form = QFormLayout(layout_group)
         self.layout_mode = QComboBox()
-        self.layout_mode.addItems(["Individual", "Duplicado", "Extendido (Span)"])
+        self.layout_mode.addItems([i18n.t("individual"), i18n.t("duplicate"), i18n.t("extended")])
         if self.config:
             self.layout_mode.setCurrentText(
                 self.config.get("layout_mode", "Individual")
@@ -119,7 +121,7 @@ class MonitorPage(BasePage):
             self.layout_mode.currentTextChanged.connect(
                 lambda v: self.config.set("layout_mode", v)
             )
-        layout_form.addRow("Modo:", self.layout_mode)
+        layout_form.addRow(i18n.t("mode_label") + ":", self.layout_mode)
         self.layout.addWidget(layout_group)
 
         self.layout.addStretch()
@@ -127,18 +129,18 @@ class MonitorPage(BasePage):
 
 class DesignPage(BasePage):
     def __init__(self, config=None, parent=None):
-        super().__init__("Personalización", parent)
+        super().__init__(i18n.t("design"), parent)
         self.config = config
 
-        style_group = QGroupBox("Estilo de la Interfaz")
+        style_group = QGroupBox(i18n.t("design_style"))
         style_form = QFormLayout(style_group)
 
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Oscuro", "Claro", "Material Dark", "Fusión V15"])
+        self.theme_combo.addItems([i18n.t("dark"), i18n.t("light"), i18n.t("material_dark"), i18n.t("fusion_v15")])
         if self.config:
-            self.theme_combo.setCurrentText(self.config.get("theme", "Oscuro"))
+            self.theme_combo.setCurrentText(self.config.get("theme", i18n.t("dark")))
             self.theme_combo.currentTextChanged.connect(self._on_theme_preset_changed)
-        style_form.addRow("Tema Predeterminado:", self.theme_combo)
+        style_form.addRow(i18n.t("theme_default_label") + ":", self.theme_combo)
 
         self.transparency_spin = QSpinBox()
         self.transparency_spin.setRange(30, 100)
@@ -149,7 +151,7 @@ class DesignPage(BasePage):
             self.transparency_spin.valueChanged.connect(
                 lambda v: self.config.set("window_transparency", v)
             )
-        style_form.addRow("Transparencia:", self.transparency_spin)
+        style_form.addRow(i18n.t("transparency") + ":", self.transparency_spin)
 
         from PySide6.QtWidgets import QFontComboBox
 
@@ -159,7 +161,7 @@ class DesignPage(BasePage):
             self.font_combo.currentFontChanged.connect(
                 lambda f: self.config.set("ui_font", f.family())
             )
-        style_form.addRow("Tipografía:", self.font_combo)
+        style_form.addRow(i18n.t("font_label") + ":", self.font_combo)
 
         self.scale_combo = QComboBox()
         self.scale_combo.addItems(["80%", "90%", "100%", "110%", "125%", "150%"])
@@ -168,9 +170,9 @@ class DesignPage(BasePage):
             self.scale_combo.currentTextChanged.connect(
                 lambda v: self.config.set("ui_scaling", v)
             )
-        style_form.addRow("Escala de Interfaz:", self.scale_combo)
+        style_form.addRow(i18n.t("ui_scale") + ":", self.scale_combo)
 
-        self.enable_anim = QCheckBox("Activar Animaciones (Transiciones)")
+        self.enable_anim = QCheckBox(i18n.t("enable_animations"))
         if self.config:
             self.enable_anim.setChecked(self.config.get("ui_animations", True))
             self.enable_anim.stateChanged.connect(
@@ -178,7 +180,7 @@ class DesignPage(BasePage):
             )
         style_form.addRow(self.enable_anim)
 
-        self.enable_effects = QCheckBox("Activar Efectos Visuales (Sombras/Glow)")
+        self.enable_effects = QCheckBox(i18n.t("enable_effects"))
         if self.config:
             self.enable_effects.setChecked(self.config.get("ui_effects", True))
             self.enable_effects.stateChanged.connect(
@@ -188,15 +190,15 @@ class DesignPage(BasePage):
 
         self.layout.addWidget(style_group)
 
-        color_group = QGroupBox("Colores Personalizados")
+        color_group = QGroupBox(i18n.t("custom_colors"))
         self.color_layout = QGridLayout(color_group)
         self.color_buttons = {}
 
         # Color Matrix
         self.colors_config = [
-            ("Color de Acento", "accent_color", "#3498db"),
-            ("Fondo de Interfaz", "ui_bg_color", "#1e1e1e"),
-            ("Color de Texto", "ui_text_color", "#ffffff"),
+            (i18n.t("accent_color"), "accent_color", "#3498db"),
+            (i18n.t("ui_bg_color"), "ui_bg_color", "#1e1e1e"),
+            (i18n.t("ui_text_color"), "ui_text_color", "#ffffff"),
         ]
 
         self._refresh_color_grid()
@@ -241,7 +243,7 @@ class DesignPage(BasePage):
 
     def pick_color(self, key, button):
         current = QColor(self.config.get(key, "#ffffff"))
-        color = QColorDialog.getColor(current, self, "Seleccionar Color")
+        color = QColorDialog.getColor(current, self, i18n.t("select_color"))
         if color.isValid():
             hex_color = color.name()
             button.setStyleSheet(
@@ -266,7 +268,7 @@ class DesignPage(BasePage):
 
 class SettingsPage(BasePage):
     def __init__(self, config=None, controller=None, parent=None):
-        super().__init__("Ajustes del Sistema", parent)
+        super().__init__(i18n.t("settings"), parent)
         self.config = config
         self.controller = controller
 
@@ -276,11 +278,11 @@ class SettingsPage(BasePage):
         container = QWidget()
         container_layout = QVBoxLayout(container)
 
-        # --- GRUPO GENERAL ---
-        gen_group = QGroupBox("General")
+        # --- GENERAL GROUP ---
+        gen_group = QGroupBox(i18n.t("general"))
         gen_form = QFormLayout(gen_group)
 
-        self.auto_start = QCheckBox("Iniciar con el sistema (Auto-Start)")
+        self.auto_start = QCheckBox(i18n.t("autostart"))
         if self.config:
             self.auto_start.setChecked(self.config.get("autostart", False))
             self.auto_start.stateChanged.connect(
@@ -288,7 +290,7 @@ class SettingsPage(BasePage):
             )
         gen_form.addRow(self.auto_start)
 
-        self.pause_active = QCheckBox("Pausar automáticamente cuando hay:")
+        self.pause_active = QCheckBox(i18n.t("pause_auto"))
         if self.config:
             self.pause_active.setChecked(self.config.get("pause_on_active", True))
             self.pause_active.stateChanged.connect(
@@ -297,50 +299,50 @@ class SettingsPage(BasePage):
         gen_form.addRow(self.pause_active)
 
         self.pause_mode = QComboBox()
-        self.pause_mode.addItems(["Ventana activa", "Maximizada", "Pantalla completa"])
+        self.pause_mode.addItems([i18n.t("pause_window"), i18n.t("pause_maximized"), i18n.t("pause_fullscreen")])
 
         self.mode_map = {
-            "Ventana activa": "Any Window",
-            "Maximizada": "Maximized",
-            "Pantalla completa": "Fullscreen",
+            i18n.t("pause_window"): "Any Window",
+            i18n.t("pause_maximized"): "Maximized",
+            i18n.t("pause_fullscreen"): "Fullscreen",
         }
         self.inv_mode_map = {v: k for k, v in self.mode_map.items()}
 
         if self.config:
             current_internal = self.config.get("pause_mode", "Fullscreen")
             self.pause_mode.setCurrentText(
-                self.inv_mode_map.get(current_internal, "Pantalla completa")
+                self.inv_mode_map.get(current_internal, "Fullscreen")
             )
             self.pause_mode.currentTextChanged.connect(self._on_pause_mode_changed)
 
-        gen_form.addRow("Modo de Pausa:", self.pause_mode)
+        gen_form.addRow(i18n.t("pause_mode_label") + ":", self.pause_mode)
         container_layout.addWidget(gen_group)
 
-        # --- GRUPO RENDIMIENTO ---
-        perf_group = QGroupBox("Rendimiento y Video")
+        # --- PERFORMANCE GROUP ---
+        perf_group = QGroupBox(i18n.t("performance_title"))
         perf_form = QFormLayout(perf_group)
 
         self.engine_combo = QComboBox()
-        self.engine_combo.addItems(["mpv", "web", "parallax"])
+        self.engine_combo.addItems([i18n.t("engine_mpv"), i18n.t("engine_web"), i18n.t("engine_parallax")])
         if self.config:
             self.engine_combo.setCurrentText(self.config.get("engine", "mpv"))
             self.engine_combo.currentTextChanged.connect(
                 lambda v: self.config.set("engine", v)
             )
-        perf_form.addRow("Motor de Renderizado:", self.engine_combo)
+        perf_form.addRow(i18n.t("rendering_engine") + ":", self.engine_combo)
 
         self.resolution_combo = QComboBox()
-        self.resolution_combo.addItems(
-            ["Nativa", "1080p (Full HD)", "720p (HD)", "480p (SD)"]
-        )
+        self.resolution_combo.addItems([
+            i18n.t("res_native"), i18n.t("res_1080p"), i18n.t("res_720p"), i18n.t("res_480p")
+        ])
         if self.config:
             self.resolution_combo.setCurrentText(
-                self.config.get("video_resolution", "Nativa")
+                self.config.get("video_resolution", "Native")
             )
             self.resolution_combo.currentTextChanged.connect(
                 lambda v: self.config.set("video_resolution", v)
             )
-        perf_form.addRow("Resolución de Video:", self.resolution_combo)
+        perf_form.addRow("Video Resolution:", self.resolution_combo)
 
         self.hwdec_combo = QComboBox()
         self.hwdec_combo.addItems(["auto", "vaapi", "nvdec", "none"])
@@ -349,7 +351,7 @@ class SettingsPage(BasePage):
             self.hwdec_combo.currentTextChanged.connect(
                 lambda v: self.config.set("hwdec", v)
             )
-        perf_form.addRow("Decodificación de Hardware:", self.hwdec_combo)
+        perf_form.addRow(i18n.t("hardware_decoding") + ":", self.hwdec_combo)
 
         self.gpu_api = QComboBox()
         self.gpu_api.addItems(["vulkan", "opengl"])
@@ -361,21 +363,21 @@ class SettingsPage(BasePage):
             self.gpu_api.currentTextChanged.connect(
                 lambda v: self.config.set("gpu_api", v)
             )
-        perf_form.addRow("API de GPU:", self.gpu_api)
+        perf_form.addRow(i18n.t("gpu_api") + ":", self.gpu_api)
 
         self.cache_combo = QComboBox()
-        self.cache_combo.addItems(["Disco (Estándar)", "RAM (Ultra)"])
+        self.cache_combo.addItems([i18n.t("cache_disk"), i18n.t("cache_ram")])
         if self.config:
             is_ram = self.config.get("video_cache", "disk") == "ram"
             self.cache_combo.setCurrentText(
-                "RAM (Ultra)" if is_ram else "Disco (Estándar)"
+                "RAM (Ultra)" if is_ram else "Disk (Standard)"
             )
             self.cache_combo.currentTextChanged.connect(self._on_cache_mode_changed)
-        perf_form.addRow("Carga de Video:", self.cache_combo)
+        perf_form.addRow("Video Cache:", self.cache_combo)
 
         self.fps_limit = QSpinBox()
         self.fps_limit.setRange(15, 144)
-        self.fps_limit.setSuffix(" FPS")
+        self.fps_limit.setSuffix(" " + i18n.t("fps"))
         if self.config:
             val = self.config.get("fps_limit", 60)
             try:
@@ -385,34 +387,34 @@ class SettingsPage(BasePage):
             self.fps_limit.valueChanged.connect(
                 lambda v: self.config.set("fps_limit", v)
             )
-        perf_form.addRow("Límite de FPS:", self.fps_limit)
+        perf_form.addRow(i18n.t("fps_limit") + ":", self.fps_limit)
         container_layout.addWidget(perf_group)
 
-        # --- GRUPO AUDIO ---
-        audio_group = QGroupBox("Audio")
+        # --- AUDIO GROUP ---
+        audio_group = QGroupBox(i18n.t("audio"))
         audio_form = QFormLayout(audio_group)
-        self.mute_audio = QCheckBox("Silenciar audio por defecto")
+        self.mute_audio = QCheckBox(i18n.t("mute_audio"))
         if self.config:
-            self.mute_audio.setChecked(self.config.get("mute", False))
+            self.mute_audio.setChecked(self.config.get("mute", True))
             self.mute_audio.stateChanged.connect(
                 lambda s: self.config.set("mute", s == 2)
             )
         audio_form.addRow(self.mute_audio)
         container_layout.addWidget(audio_group)
 
-        # --- OPTIMIZACIÓN GNOME ---
+        # --- GNOME OPTIMIZATION ---
         from core.desktop_helper import DesktopHelper
 
         if DesktopHelper.is_gnome():
-            gnome_group = QGroupBox("Optimización para GNOME")
+            gnome_group = QGroupBox(i18n.t("gnome_opt_title"))
             gnome_layout = QVBoxLayout(gnome_group)
-            info_label = QLabel("En GNOME Wayland, se requiere una pequeña extensión.")
+            info_label = QLabel(i18n.t("gnome_info_requires_extension"))
             info_label.setWordWrap(True)
             info_label.setStyleSheet("color: #aaa; font-size: 11px;")
             gnome_layout.addWidget(info_label)
-            self.install_gnome_btn = QPushButton("Instalar Extensión de Fondo")
+            self.install_gnome_btn = QPushButton(i18n.t("install_wallpaper_extension"))
             if DesktopHelper.is_extension_installed():
-                self.install_gnome_btn.setText("Reinstalar / Actualizar Extensión")
+                self.install_gnome_btn.setText(i18n.t("reinstall_update_extension"))
             self.install_gnome_btn.clicked.connect(self._on_install_gnome_ext)
             gnome_layout.addWidget(self.install_gnome_btn)
             container_layout.addWidget(gnome_group)
@@ -436,17 +438,17 @@ class SettingsPage(BasePage):
 
         success, message = DesktopHelper.install_extension()
         if success:
-            QMessageBox.information(self, "GNOME Helper", message)
-            self.install_gnome_btn.setText("Extensión Instalada")
+            QMessageBox.information(self, i18n.t("gnome_helper"), message)
+            self.install_gnome_btn.setText(i18n.t("extension_installed"))
         else:
             QMessageBox.critical(
-                self, "Error", f"No se pudo instalar la extensión: {message}"
+                self, i18n.t("error_title"), f"{i18n.t('install_error')}: {message}"
             )
             info_label.setWordWrap(True)
             info_label.setStyleSheet("color: #aaa; font-size: 11px;")
             gnome_layout.addWidget(info_label)
 
-            self.install_gnome_btn = QPushButton("Instalar Extensión de Fondo")
+            self.install_gnome_btn = QPushButton(i18n.t("install_wallpaper_extension"))
             if DesktopHelper.is_extension_installed():
                 self.install_gnome_btn.setText("Reinstalar / Actualizar Extensión")
 
@@ -465,11 +467,11 @@ class SettingsPage(BasePage):
 
         success, message = DesktopHelper.install_extension()
         if success:
-            QMessageBox.information(self, "GNOME Helper", message)
-            self.install_gnome_btn.setText("Extensión Instalada")
+            QMessageBox.information(self, i18n.t("gnome_helper"), message)
+            self.install_gnome_btn.setText(i18n.t("extension_installed"))
         else:
             QMessageBox.critical(
-                self, "Error", f"No se pudo instalar la extensión: {message}"
+                self, i18n.t("error_title"), f"{i18n.t('install_error')}: {message}"
             )
 
 
@@ -552,47 +554,35 @@ class AboutPage(BasePage):
             "<div style='line-height: 160%; color: #aaa;'>"
             "W-Engine Pro nace de la necesidad de contar con un entorno de escritorio dinámico, "
             "moderno y profesional en Linux, comparable a soluciones como Wallpaper Engine en otros sistemas operativos.<br><br>"
-            "Este proyecto tiene como objetivo ofrecer una herramienta ligera, eficiente y fácil de usar, "
-            "permitiendo a los usuarios personalizar su escritorio mediante fondos animados y contenido "
-            "multimedia de alta calidad, sin comprometer el rendimiento del sistema.<br><br>"
-            "A diferencia de soluciones tradicionales, W-Engine Pro incorpora un motor inteligente de "
-            "detección de actividad, capaz de optimizar automáticamente el uso de recursos. Esto permite "
-            "pausar o reducir la carga del sistema cuando el usuario está ejecutando tareas exigentes, "
-            "logrando un equilibrio ideal entre estética y rendimiento.<br><br>"
-            "<b style='color: white; font-size: 18px;'> Características principales</b><br>"
-            "• Soporte para fondos animados (video y renderizado)<br>"
-            "• Reproducción de wallpapers mediante URL/enlace directo<br>"
-            "• Actualización en tiempo real sin reiniciar el motor<br>"
-            "• Sistema de configuración dinámica sincronizada con la interfaz<br>"
-            "• Auto-guardado inteligente sin interrupciones<br>"
-            "• Soporte multi-monitor<br>"
-            "• Arquitectura optimizada para bajo consumo de CPU/GPU<br><br>"
-            "<b style='color: white; font-size: 18px;'> Filosofía del proyecto</b><br>"
-            "W-Engine Pro está diseñado bajo una arquitectura modular y reactiva, donde cada componente "
-            "del sistema se comunica de forma eficiente para permitir cambios instantáneos.<br><br>"
-            "El enfoque principal es brindar máxima fluidez, alta personalización, control total del "
-            "usuario y compatibilidad con múltiples entornos Linux.<br><br>"
-            "<b style='color: white; font-size: 18px;'> Funciones experimentales</b><br>"
-            "Algunas características avanzadas dependen del entorno de escritorio y se encuentran en desarrollo:<br>"
-            "• Integración del wallpaper como fondo real sin cubrir iconos<br>"
-            "• Compatibilidad avanzada con distintos gestores de ventanas<br>"
-            "• Soporte limitado en Wayland debido a restricciones del sistema<br><br>"
-            "<b style='color: white; font-size: 18px;'> Compatibilidad</b><br>"
-            "• KDE Plasma (X11): Estable<br>"
-            "• XFCE: Estable<br>"
-            "• GNOME (X11): Parcial<br>"
+            "This project aims to offer a lightweight, efficient and easy-to-use tool, "
+            "allowing users to customize their desktop with animated wallpapers and high-quality multimedia "
+            "content, without compromising system performance.<br><br>"
+            "Unlike traditional solutions, W-Engine Pro incorporates an intelligent activity "
+            "detection engine, capable of automatically optimizing resource usage. This allows "
+            "pausing or reducing system load when the user is running demanding tasks, "
+            "achieving an ideal balance between aesthetics and performance.<br><br>"
+            "<b style='color: white; font-size: 18px;'> Key Features</b><br>"
+            "• Animated wallpaper support (video and rendering)<br>"
+            "• Wallpaper playback via URL/direct link<br>"
+            "• Real-time updates without restarting the engine<br>"
+            "• Dynamic configuration system synchronized with the interface<br>"
+            "• Smart auto-save without interruptions<br>"
+            "• Multi-monitor support<br>"
+            "• Optimized architecture for low CPU/GPU usage<br><br>"
+            "<b style='color: white; font-size: 18px;'> Project Philosophy</b><br>"
+            "W-Engine Pro is designed with a modular and reactive architecture, where each system component "
+            "communicates efficiently to allow instant changes.<br><br>"
+            "The main focus is to provide maximum fluidity, high customization, total user control "
+            "and compatibility with multiple Linux environments.<br><br>"
+            "<b style='color: white; font-size: 18px;'> Compatibility</b><br>"
+            "• KDE Plasma (X11): Stable<br>"
+            "• XFCE: Stable<br>"
+            "• GNOME (X11): Partial<br>"
             "• Wayland: Experimental<br><br>"
-            "<b style='color: white; font-size: 18px;'> Tecnologías</b><br>"
+            "<b style='color: white; font-size: 18px;'> Technologies</b><br>"
             "• Python 3 / Qt6<br>"
-            "• OpenGL / Renderizado por hardware<br>"
-            "• Arquitectura desacoplada (Engine + UI)<br><br>"
-            "<b style='color: white; font-size: 18px;'> Desarrollo</b><br>"
-            "Desarrollado como un proyecto independiente enfocado en llevar la personalización del "
-            "escritorio Linux a un nuevo nivel, combinando rendimiento, estética y control.<br><br>"
-            "Actualmente en desarrollo activo, con mejoras constantes en estabilidad, rendimiento y nuevas funcionalidades.<br><br>"
-            "<b style='color: white; font-size: 18px;'> Visión</b><br>"
-            "Convertirse en una alternativa nativa sólida y eficiente en Linux para la personalización "
-            "avanzada del escritorio, manteniendo un equilibrio perfecto entre potencia y ligereza."
+            "• OpenGL / Hardware rendering<br>"
+            "• Decoupled architecture (Engine + UI)"
             "</div>"
         )
         self.desc_label.setText(about_text)
