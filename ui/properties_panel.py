@@ -26,6 +26,7 @@ class PropertiesPanel(QWidget):
     removeRequested = Signal()
     stopAllRequested = Signal()
     startRequested = Signal()
+    applyRequested = Signal()  # Signal for applying playback settings changes
 
     def __init__(self, config=None, parent=None):
         super().__init__(parent)
@@ -82,6 +83,7 @@ class PropertiesPanel(QWidget):
 
         self.apply_btn = QPushButton("Apply")
         self.apply_btn.setObjectName("apply_btn")
+        self.apply_btn.clicked.connect(self.applyRequested.emit)
 
         actions_layout.addWidget(self.remove_btn)
         actions_layout.addWidget(self.apply_btn)

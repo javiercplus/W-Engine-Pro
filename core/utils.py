@@ -50,7 +50,8 @@ def build_common_mpv_args(config, socket_path, wid_needed=False):
         args.append("--wid=%WID")
 
     loop = "inf" if config.get_setting("loop", "Loop") == "Loop" else "no"
-    mute_value = config.get_setting("mute", True)
+    # Do not assume audio is muted by default; prefer stored user config (default False).
+    mute_value = config.get_setting("mute", False)
     logging.info(f"[build_common_mpv_args] mute config value: {mute_value}")
     args.extend(
         [

@@ -58,6 +58,9 @@ class MainWindow(QMainWindow):
         self.controller = controller
         self.config = config
         self.resources = resources
+        self._apply_selection_connection = (
+            None  # Track specific connection for wallpaper selection
+        )
 
         self.setWindowTitle(i18n.t("app_name"))
         self.resize(1200, 800)
@@ -117,6 +120,7 @@ class MainWindow(QMainWindow):
         self.props_panel.removeRequested.connect(self.on_remove_requested)
         self.props_panel.stopAllRequested.connect(self.on_stop_all)
         self.props_panel.startRequested.connect(self.on_start_requested)
+        self.props_panel.applyRequested.connect(self.on_apply_settings_requested)
 
         self.content_splitter.addWidget(self.props_panel)
 
@@ -357,16 +361,22 @@ class MainWindow(QMainWindow):
         self.props_panel.load_wallpaper(name, w_type, path, config=self.config)
         self.props_panel.preview_box.setPixmap(pixmap)
 
-        # Safer disconnection of the apply button to avoid RuntimeWarnings
-        try:
-            self.props_panel.apply_btn.clicked.disconnect()
-        except (TypeError, RuntimeError):
-            # Normal if no signal was connected
-            pass
+        # Disconnect only the specific wallpaper selection connection
+        # This preserves other connections like applyRequested for playback settings
+        if self._apply_selection_connection is not None:
+            try:
+                self.props_panel.apply_btn.clicked.disconnect(
+                    self._apply_selection_connection
+                )
+            except (TypeError, RuntimeError):
+                pass
+            self._apply_selection_connection = None
 
-        self.props_panel.apply_btn.clicked.connect(
-            lambda: self._apply_selection(self.current_playlist)
+        # Connect new wallpaper selection handler
+        self._apply_selection_connection = lambda: self._apply_selection(
+            self.current_playlist
         )
+        self.props_panel.apply_btn.clicked.connect(self._apply_selection_connection)
 
     def _apply_selection(self, playlist):
         if not playlist:
@@ -454,6 +464,32 @@ class MainWindow(QMainWindow):
         logging.info(f"[UI] Property changed: {key} = {value}")
         if self.config:
             self.config.set(key, value)
+
+    def on_apply_settings_requested(self):
+        """Force apply playback settings changes, restarting backend if needed."""
+        logging.info("[UI] Apply settings requested - forcing backend restart")
+        if self.controller and self.controller.active_wallpapers:
+            # Force restart all active wallpapers to apply settings
+            for monitor_id, video_path in list(
+                self.controller.active_wallpapers.items()
+            ):
+                logging.info(f"[UI] Restarting wallpaper on monitor {monitor_id}")
+                self.controller.renderer.restart(self.config, video_path)
+        # Persist config to disk immediately to avoid losing playback settings
+        try:
+            if self.config:
+                if hasattr(self.config, "_save") and callable(
+                    getattr(self.config, "_save")
+                ):
+                    # Internal fast-save
+                    self.config._save()
+                elif hasattr(self.config, "save") and callable(
+                    getattr(self.config, "save")
+                ):
+                    # Fallback if public API exists
+                    self.config.save()
+        except Exception as e:
+            logging.error(f"[UI] Error saving config after apply: {e}")
 
     def toggle_fullscreen(self):
         if self.isFullScreen():

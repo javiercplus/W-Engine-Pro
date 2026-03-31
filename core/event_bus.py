@@ -27,10 +27,29 @@ class EventBus(QObject):
     def emit(self, event_name, data=None):
         """Emits an event to all subscribers."""
         logging.debug(f"[EventBus] Event emitted: {event_name} - {data}")
-        logging.debug(
-            f"[EventBus] Signal connections: {self.event_occurred.receivers(self.event_occurred)} receivers"
-        )
-        self.event_occurred.emit(event_name, data)
+
+        # Safely attempt to introspect the number of receivers.
+        # Some Signal/SignalInstance implementations (PySide6) don't expose a
+        # `receivers` method directly or may behave differently; avoid calling
+        # it unsafely to prevent AttributeError/TypeError at runtime.
+        connections = "unknown"
+        try:
+            recv_fn = getattr(self.event_occurred, "receivers", None)
+            if callable(recv_fn):
+                try:
+                    connections = recv_fn(self.event_occurred)
+                except Exception:
+                    connections = "unknown"
+        except Exception:
+            connections = "unknown"
+        logging.debug(f"[EventBus] Signal connections: {connections} receivers")
+
+        # Emit the Qt signal, guarding against unexpected exceptions so the
+        # application can continue even if a subscriber misbehaves.
+        try:
+            self.event_occurred.emit(event_name, data)
+        except Exception as e:
+            logging.error(f"[EventBus] Error emitting event '{event_name}': {e}")
 
     def subscribe(self, event_name, callback):
         """

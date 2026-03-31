@@ -1,14 +1,16 @@
-import sys
 import logging
 import os
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt, QSize
-from ui.main_window import MainWindow
+import sys
+
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+
 from core.config_manager import ConfigManager
+from core.desktop_helper import DesktopHelper
 from core.engine_controller import EngineController
 from core.resource_manager import ResourceManager
-from core.desktop_helper import DesktopHelper
+from ui.main_window import MainWindow
 
 
 def main():
@@ -59,10 +61,10 @@ def main():
 
         tray_icon = QSystemTrayIcon(app_icon, app)
         tray_menu = QMenu()
-        
+
         def update_tray_menu_style():
             tray_menu.setStyleSheet(app.styleSheet())
-        
+
         window.theme_changed.connect(update_tray_menu_style)
 
         show_action = QAction("Show Interface", app)
@@ -98,6 +100,18 @@ def main():
         logging.error(f"CRITICAL UI ERROR: {e}")
         exit_code = 1
     finally:
+        # Ensure configuration is flushed to disk before shutting down controllers.
+        # This forces any pending playback/settings to be persisted.
+        try:
+            if config:
+                # Prefer calling the internal save routine to guarantee immediate write.
+                # Fallback to a generic 'save' if present.
+                if hasattr(config, "_save") and callable(getattr(config, "_save")):
+                    config._save()
+                elif hasattr(config, "save") and callable(getattr(config, "save")):
+                    config.save()
+        except Exception as e:
+            logging.error(f"Error saving config on shutdown: {e}")
         controller.shutdown()
 
     sys.exit(exit_code)
