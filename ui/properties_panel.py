@@ -111,13 +111,12 @@ class PropertiesPanel(QWidget):
         self.prop_group = QGroupBox(i18n.t("playback_settings"))
         form_layout = QFormLayout()
 
-        self.volume_slider = QSlider(Qt.Horizontal)
-        self.volume_slider.setRange(0, 100)
-        self.volume_slider.setValue(50)
-        self.volume_slider.valueChanged.connect(
-            lambda v: self._queue_update("volume", v)
+        self.mute_check = QCheckBox(i18n.t("mute_audio"))
+        self.mute_check.setChecked(True)
+        self.mute_check.toggled.connect(
+            lambda v: self._queue_update("mute", v)
         )
-        form_layout.addRow(i18n.t("volume") + ":", self.volume_slider)
+        form_layout.addRow("", self.mute_check)
 
         self.brightness_slider = QSlider(Qt.Horizontal)
         self.brightness_slider.setRange(-100, 100)
@@ -211,8 +210,7 @@ class PropertiesPanel(QWidget):
         """Syncs sliders and combos with current config values."""
         self.blockSignals(True)
 
-        volume = config.get("volume", 50)
-        self.volume_slider.setValue(volume)
+        self.mute_check.setChecked(config.get("mute", True))
 
         self.brightness_slider.setValue(config.get("brightness", 0))
         self.contrast_slider.setValue(config.get("contrast", 0))

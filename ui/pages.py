@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QUrl, QTimer, QSize
 from PySide6.QtGui import QIcon, QColor, QDesktopServices, QPixmap
 from ui.wallpaper_grid import WallpaperGrid
+from ui.sidebar import get_icon
 import os
 
 from core import i18n
@@ -43,12 +44,12 @@ class LibraryPage(BasePage):
         action_bar = QHBoxLayout()
 
         self.add_url_btn = QPushButton(i18n.t("add_url"))
-        self.add_url_btn.setIcon(QIcon.fromTheme("list-add"))
+        self.add_url_btn.setIcon(get_icon("list-add"))
         self.add_url_btn.clicked.connect(self.addUrlRequested.emit)
         action_bar.addWidget(self.add_url_btn)
 
         self.open_folder_btn = QPushButton(i18n.t("open_folder"))
-        self.open_folder_btn.setIcon(QIcon.fromTheme("folder-open"))
+        self.open_folder_btn.setIcon(get_icon("folder-open"))
         self.open_folder_btn.clicked.connect(self.open_wallpaper_folder)
         action_bar.addWidget(self.open_folder_btn)
 

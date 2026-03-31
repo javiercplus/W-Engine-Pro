@@ -277,7 +277,6 @@ class WaylandBackend(BaseBackend):
         logging.debug(f"[WaylandBackend] update_setting: {key}={value}")
 
         property_map = {
-            "volume": "volume",
             "mute": "mute",
             "brightness": "brightness",
             "contrast": "contrast",

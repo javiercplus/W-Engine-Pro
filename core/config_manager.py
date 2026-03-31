@@ -13,12 +13,14 @@ class ConfigManager(QObject):
         super().__init__()
         self.config_path = os.path.expanduser("~/.config/w-engine-pro/config.json")
         self.data = {}
-        self._load()
-        self.event_bus = EventBus.instance()
 
+        # Create save_timer before loading so _load can safely call it.
         self.save_timer = QTimer()
         self.save_timer.setSingleShot(True)
         self.save_timer.timeout.connect(self._save)
+
+        self.event_bus = EventBus.instance()
+        self._load()
 
     def _load(self):
         if os.path.exists(self.config_path):
@@ -30,6 +32,11 @@ class ConfigManager(QObject):
                 self.data = {}
         else:
             self.data = {}
+
+        # Force mute default to True (wallpaper should be silent by default)
+        if self.data.get("mute") is False:
+            self.data["mute"] = True
+            self.save_timer.start(500)
 
     def get(self, key, default=None):
         return self.data.get(key, default)

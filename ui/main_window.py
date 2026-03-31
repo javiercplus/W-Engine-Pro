@@ -116,6 +116,7 @@ class MainWindow(QMainWindow):
         self.props_panel.removeRequested.connect(self.on_remove_requested)
         self.props_panel.stopAllRequested.connect(self.on_stop_all)
         self.props_panel.startRequested.connect(self.on_start_requested)
+
         self.content_splitter.addWidget(self.props_panel)
 
         self.selection_timer = QTimer(self)
@@ -133,7 +134,6 @@ class MainWindow(QMainWindow):
         self.event_bus = EventBus.instance()
         self.event_bus.event_occurred.connect(self._on_event)
 
-        # Timer to debounce theme updates (Optimization)
         self.theme_timer = QTimer(self)
         self.theme_timer.setSingleShot(True)
         self.theme_timer.setInterval(100)
@@ -151,7 +151,11 @@ class MainWindow(QMainWindow):
     def _apply_initial_style(self):
         theme_name = self.config.get("theme", "Oscuro")
         accent_color = self.config.get("accent_color", "#3498db")
-        # Call _apply_theme which now handles scaling and transparency too
+        text_color = self.config.get("ui_text_color", "#ffffff")
+
+        from ui.sidebar import set_icon_theme_color
+        set_icon_theme_color(text_color)
+
         self._apply_theme(theme_name, accent_color)
         if hasattr(self, "about_page"):
             self.about_page.update_accent_color(accent_color)
@@ -255,6 +259,10 @@ class MainWindow(QMainWindow):
             self.setStyleSheet(style_sheet)
 
         self.theme_changed.emit()
+
+        from ui.sidebar import set_icon_theme_color
+        set_icon_theme_color(text_color)
+        self.sidebar.refresh_icons()
 
         # 6. Palette sync for native dialogs
         palette = self.palette()
@@ -395,9 +403,6 @@ class MainWindow(QMainWindow):
         if self.controller:
             for m in self.controller.monitors:
                 self.controller.set_wallpaper_for_monitor(m["id"], path)
-
-    def on_wallpaper_selected(self, index):
-        pass
 
     def on_remove_requested(self):
         indexes = self.lib_page.grid.selectionModel().selectedIndexes()

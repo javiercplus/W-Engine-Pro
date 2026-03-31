@@ -67,9 +67,6 @@ class MpvEngine(WallpaperEngineInterface):
             return
 
         try:
-            if key == "volume":
-                self.player.volume = float(value)
-
             elif key == "brightness":
                 self.player.brightness = int(value)
             elif key == "contrast":

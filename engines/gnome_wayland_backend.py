@@ -94,7 +94,6 @@ class GnomeWaylandBackend(BaseBackend):
             "--panscan=1.0",
             "--x11-name=wengine-wallpaper",
             "--no-keep-open",
-            f"--volume={config.get_setting('volume', 50)}",
             f"--mute={'yes' if config.get_setting('mute', False) else 'no'}",
         ]
 
@@ -213,7 +212,6 @@ class GnomeWaylandBackend(BaseBackend):
             f"[GNOME_WAYLAND_BACKEND_DEBUG] update_setting received: key={key}, value={value}"
         )
         property_map = {
-            "volume": "volume",
             "mute": "mute",
             "brightness": "brightness",
             "contrast": "contrast",

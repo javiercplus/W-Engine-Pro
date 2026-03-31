@@ -63,7 +63,7 @@ class GnomeIntegratedEngine(BaseBackend):
             except: pass
 
     def update_setting(self, key, value):
-        if key in ["volume", "mute"]:
+        if key == "mute":
             return self.send_command("set_property", key, value)
         return False
 
