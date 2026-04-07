@@ -31,6 +31,14 @@ chmod +x W-Engine-Pro-1.0.0-x86_64.AppImage
 ./W-Engine-Pro-1.0.0-x86_64.AppImage
 ```
 
+### Flatpak
+
+Download and install the bundle:
+```bash
+flatpak install --user W-Engine-Pro-1.0.0-x86_64.flatpak
+flatpak run org.wengine.Pro
+```
+
 ### Build from source
 
 ```bash
@@ -39,23 +47,47 @@ pip install PySide6 psutil Pillow
 
 # Install system dependencies
 # Arch Linux
-sudo pacman -S mpv xorg-xwininfo xorg-xrandr yt-dlp
+sudo pacman -S mpv mpvpaper xorg-xwininfo xorg-xrandr yt-dlp
 
 # Debian/Ubuntu
-sudo apt install mpv x11-utils xrandr yt-dlp
+sudo apt install mpv mpvpaper x11-utils yt-dlp
 
 # Fedora
-sudo dnf install mpv xorg-x11-utils xrandr yt-dlp
+sudo dnf install mpv mpvpaper xorg-x11-utils yt-dlp
 ```
 
-### Build AppImage
+## Building Packages
+
+A unified build script handles both AppImage and Flatpak:
 
 ```bash
 cd packaging
-./build.sh rebuild
+
+# Build AppImage
+./build.sh appimage
+# Output: dist/W-Engine-Pro-1.0.0-x86_64.AppImage
+
+# Build Flatpak (creates .flatpak bundle automatically)
+./build.sh flatpak
+# Output: packaging/flatpak/W-Engine-Pro-1.0.0-x86_64.flatpak
+
+# Build both
+./build.sh
+
+# Clean all build artifacts
+./build.sh clean
 ```
 
-Output: `dist/W-Engine-Pro-1.0.0-x86_64.AppImage`
+### Flatpak standalone
+
+You can also build Flatpak independently:
+```bash
+cd packaging/flatpak
+./build-flatpak.sh
+# Output: W-Engine-Pro-1.0.0-x86_64.flatpak
+```
+
+Requirements: `flatpak-builder`
 
 ## Usage
 
@@ -115,9 +147,14 @@ ui/                     # Qt6 Interface
 threads/                # Worker threads
 
 packaging/              # Build scripts
-  build.sh              # Build AppImage
-  wengine.spec          # PyInstaller spec
-  AppRun                # AppImage runtime
+  build.sh              # Unified build script (AppImage + Flatpak)
+  appimage/             # AppImage-specific files
+    appimagetool        # AppImage creation tool
+    linuxdeploy         # Linux deployment tool
+  flatpak/              # Flatpak-specific files
+    build-flatpak.sh    # Standalone Flatpak build script
+    org.wengine.Pro.json # Flatpak manifest
+    wengine.spec        # PyInstaller spec file
 ```
 
 ## License

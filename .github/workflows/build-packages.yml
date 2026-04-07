@@ -1,0 +1,134 @@
+name: Build Packages
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  flatpak:
+    name: Build Flatpak
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-46
+      options: --privileged
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y flatpak flatpak-builder wget lld
+
+      - name: Add Flathub remote
+        run: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Install required SDK and runtime
+        run: |
+          flatpak install -y flathub org.freedesktop.Platform//24.08
+          flatpak install -y flathub org.freedesktop.Sdk//24.08
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --user pyinstaller
+          export PATH="$HOME/.local/bin:$PATH"
+
+      - name: Build Flatpak using packaging script
+        run: |
+          chmod +x packaging/build.sh
+          cd packaging
+          ./build.sh flatpak
+        env:
+          CI: "true"
+
+      - name: Upload Flatpak artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: W-Engine-Pro-Flatpak
+          path: packaging/flatpak/W-Engine-Pro-*.flatpak
+          if-no-files-found: error
+
+  appimage:
+    name: Build AppImage
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y wget lld fuse libfuse2 desktop-file-utils \
+            libglib2.0-dev libxcb-xinerama0 libxcb-cursor0 \
+            libxkbcommon-x11-0 libpulse0 libmpv2 mpv
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller
+
+      - name: Download AppImage packaging tools
+        run: |
+          mkdir -p packaging/appimage
+          cd packaging/appimage
+
+          # Download linuxdeploy
+          wget -q -O linuxdeploy \
+            "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+          chmod +x linuxdeploy
+
+          # Download appimagetool
+          wget -q -O appimagetool \
+            "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool
+
+      - name: Build AppImage using packaging script
+        run: |
+          chmod +x packaging/build.sh
+          cd packaging
+          ./build.sh appimage
+        env:
+          CI: "true"
+          ARCH: x86_64
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: W-Engine-Pro-AppImage
+          path: dist/*.AppImage
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: [flatpak, appimage]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*.flatpak
+            artifacts/**/*.AppImage
+          draft: false
+          prerelease: false
+          generate_release_notes: true

@@ -1,0 +1,29 @@
+#!/bin/bash
+export PATH="/app/bin:/run/host/usr/bin:/usr/bin:$PATH"
+export LD_LIBRARY_PATH="/app/lib:/app/lib/x86_64-linux-gnu:/app/bin/wengine/_internal:$LD_LIBRARY_PATH"
+
+for dir in "/app/bin/wengine/_internal"; do
+    if [ -d "$dir" ]; then
+        export PYTHONPATH="$dir:$PYTHONPATH"
+        break
+    fi
+done
+
+for dir in "/app/lib"/PySide6/Qt; do
+    if [ -d "$dir" ]; then
+        export QT_PLUGIN_PATH="$dir/plugins:$QT_PLUGIN_PATH"
+        export QT_QPA_PLATFORM_PLUGIN_PATH="$dir/plugins/platforms:$QT_QPA_PLATFORM_PLUGIN_PATH"
+        export QML2_IMPORT_PATH="$dir/qml:$QML2_IMPORT_PATH"
+        break
+    fi
+done
+
+export PATH="/app/bin:$PATH"
+
+if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
+    export QT_QPA_PLATFORM="wayland;xcb"
+else
+    export QT_QPA_PLATFORM="xcb"
+fi
+
+exec /app/bin/wengine/wengine "$@"

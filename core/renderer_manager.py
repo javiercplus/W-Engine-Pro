@@ -42,22 +42,29 @@ class RendererManager:
     def _initialize_backend(self):
         best = self.profile.get_best_backend()
         logging.info(f"[RendererManager] Selected backend: {best}")
+        logging.info(
+            f"[RendererManager] Compositor: {self.profile.compositor}, Protocol: {self.profile.protocol}"
+        )
 
-        # MPV es el backend principal - seleccionar basado en el mejor backend detectado
-        if best == "gnome_fake" or self.profile.compositor == "GNOME":
-            # GNOME: usar MPV integrado nativo
+        # GNOME Wayland: usar GnomeWaylandBackend (mpv flotante sin X11 embedding)
+        if self.profile.compositor == "GNOME" and self.profile.protocol == "wayland":
+            logging.info(
+                "[RendererManager] GNOME Wayland detected -> using GnomeWaylandBackend"
+            )
+            return GnomeWaylandBackend()
+        # GNOME X11: usar MPV integrado nativo con X11 embedding
+        elif best == "gnome_fake" or self.profile.compositor == "GNOME":
+            logging.info(
+                "[RendererManager] GNOME X11 detected -> using GnomeIntegratedEngine"
+            )
             return GnomeIntegratedEngine()
         elif best == "x11" or self.profile.protocol == "x11":
-            # X11: usar mpv directo en root window
             return X11Backend()
         elif best == "mpvpaper":
-            # Wayland con mpvpaper disponible
             return WaylandBackend()
         elif best == "mpv_floating":
-            # Wayland sin mpvpaper: usar MPV flotante
             return WaylandBackend()
         else:
-            # Fallback: siempre usar MPV
             if self.profile.protocol == "x11":
                 return X11Backend()
             else:
@@ -119,9 +126,13 @@ class RendererManager:
 
     def get_active_sockets(self):
         if hasattr(self.backend, "active_sockets"):
-            logging.debug(f"[RendererManager] get_active_sockets: {self.backend.active_sockets}")
+            logging.debug(
+                f"[RendererManager] get_active_sockets: {self.backend.active_sockets}"
+            )
             return self.backend.active_sockets
-        logging.debug("[RendererManager] get_active_sockets: backend has no active_sockets")
+        logging.debug(
+            "[RendererManager] get_active_sockets: backend has no active_sockets"
+        )
         return []
 
     def resolve_playback_mode(self, video_path):

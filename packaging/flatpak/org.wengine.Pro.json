@@ -1,0 +1,77 @@
+{
+  "app-id": "org.wengine.Pro",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "25.08",
+  "sdk": "org.freedesktop.Sdk",
+  "command": "wengine-launcher",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=x11",
+    "--socket=wayland",
+    "--socket=pulseaudio",
+    "--device=dri",
+    "--filesystem=home",
+    "--filesystem=xdg-pictures",
+    "--filesystem=host-os",
+    "--talk-name=org.freedesktop.Flatpak",
+    "--talk-name=org.freedesktop.Notifications",
+    "--talk-name=org.kde.StatusNotifierWatcher",
+    "--own-name=org.kde.*",
+    "--env=QT_QPA_PLATFORM=wayland;xcb",
+    "--env=PATH=/app/bin:/usr/bin:/run/host/usr/bin"
+  ],
+  "modules": [
+    {
+      "name": "host-bin-wrappers",
+      "buildsystem": "simple",
+      "build-commands": [
+        "mkdir -p /app/bin",
+        "printf '#!/bin/sh\\nexec flatpak-spawn --host mpv \"$@\"\\n' > /app/bin/mpv && chmod +x /app/bin/mpv",
+        "printf '#!/bin/sh\\nexec flatpak-spawn --host mpvpaper \"$@\"\\n' > /app/bin/mpvpaper && chmod +x /app/bin/mpvpaper",
+        "printf '#!/bin/sh\\nexec flatpak-spawn --host xrandr \"$@\"\\n' > /app/bin/xrandr && chmod +x /app/bin/xrandr",
+        "printf '#!/bin/sh\\nexec flatpak-spawn --host xwininfo \"$@\"\\n' > /app/bin/xwininfo && chmod +x /app/bin/xwininfo",
+        "printf '#!/bin/sh\\nexec flatpak-spawn --host yt-dlp \"$@\"\\n' > /app/bin/yt-dlp && chmod +x /app/bin/yt-dlp"
+      ]
+    },
+    {
+      "name": "wengine-bin",
+      "buildsystem": "simple",
+      "build-commands": [
+        "mkdir -p /app/bin/wengine",
+        "install -Dm755 wengine-dir/wengine.bin /app/bin/wengine/wengine",
+        "cp -r wengine-dir/_internal /app/bin/wengine/",
+        "install -Dm755 AppRun /app/bin/wengine-launcher",
+        "install -Dm644 wengine.desktop /app/share/applications/org.wengine.Pro.desktop",
+        "install -Dm644 wengine.svg /app/share/icons/hicolor/scalable/apps/org.wengine.Pro.svg",
+        "cp -r files-lib/* /app/lib/ 2>/dev/null || true"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "files/wengine",
+          "dest": "wengine-dir"
+        },
+        {
+          "type": "file",
+          "path": "AppRun",
+          "dest-filename": "AppRun"
+        },
+        {
+          "type": "file",
+          "path": "wengine.desktop",
+          "dest-filename": "wengine.desktop"
+        },
+        {
+          "type": "file",
+          "path": "wengine.svg",
+          "dest-filename": "wengine.svg"
+        },
+        {
+          "type": "dir",
+          "path": "files/lib",
+          "dest": "files-lib"
+        }
+      ]
+    }
+  ]
+}

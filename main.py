@@ -6,6 +6,7 @@ from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
+from core import i18n
 from core.config_manager import ConfigManager
 from core.desktop_helper import DesktopHelper
 from core.engine_controller import EngineController
@@ -75,13 +76,17 @@ def main():
 
         window.theme_changed.connect(update_tray_menu_style)
 
-        show_action = QAction("Show Interface", app)
+        show_action = QAction(
+            i18n.t("show_interface") if hasattr(i18n, "t") else "Show Interface", app
+        )
         show_action.triggered.connect(window.showNormal)
 
-        pause_action = QAction("Pause/Resume", app)
+        pause_action = QAction(
+            i18n.t("pause_resume") if hasattr(i18n, "t") else "Pause/Resume", app
+        )
         pause_action.triggered.connect(lambda: controller.pause_all())
 
-        quit_action = QAction("Exit", app)
+        quit_action = QAction(i18n.t("exit") if hasattr(i18n, "t") else "Exit", app)
         quit_action.triggered.connect(app.quit)
 
         tray_menu.addAction(show_action)
@@ -90,6 +95,31 @@ def main():
         tray_menu.addAction(quit_action)
 
         tray_icon.setContextMenu(tray_menu)
+        tray_icon.setToolTip("W-Engine Pro")
+
+        # Check if system tray is available
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            logging.warning(
+                "[Tray] System tray is NOT available (common in GNOME Wayland)"
+            )
+
+            # Check if we're on GNOME Wayland
+            profile = DesktopHelper.get_profile()
+            is_gnome = "gnome" in profile.compositor.lower()
+            is_wayland = profile.protocol.lower() == "wayland"
+
+            if is_gnome and is_wayland:
+                logging.warning(
+                    "[Tray] GNOME Wayland detected - AppIndicator extension required"
+                )
+                logging.warning(
+                    "[Tray] Install 'AppIndicator and KStatusNotifierItem Support' GNOME extension for tray icon"
+                )
+                # Don't show QMessageBox here - event loop isn't ready yet
+                # The warning will be shown in MainWindow after UI is ready
+        else:
+            logging.info("[Tray] System tray is available")
+
         tray_icon.show()
 
         # Show window normally or hide if start minimized

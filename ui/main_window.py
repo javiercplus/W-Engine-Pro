@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from core import i18n
+from core.desktop_helper import DesktopHelper
 from core.event_bus import EventBus
 from ui.diagnostics_panel import DiagnosticsPanel
 from ui.pages import AboutPage, LibraryPage, MonitorPage
@@ -193,6 +194,25 @@ class MainWindow(QMainWindow):
         self._apply_initial_style()
 
         self._start_library_loading()
+
+        # GNOME Wayland experimental indicator in window title
+        self._check_gnome_experimental()
+
+    def _check_gnome_experimental(self):
+        """Check if running on GNOME Wayland and add experimental indicator to title."""
+        try:
+            profile = DesktopHelper.get_profile()
+            is_gnome = "gnome" in profile.compositor.lower()
+            is_wayland = profile.protocol.lower() == "wayland"
+
+            if is_gnome and is_wayland:
+                self._gnome_experimental_indicator = True
+                # Update window title to show experimental status
+                base_title = i18n.t("app_name")
+                self.setWindowTitle(f"{base_title} ⚠️ Experimental")
+                logging.info("[GNOME] Experimental indicator added to window title")
+        except Exception as e:
+            logging.warning(f"Failed to check GNOME environment: {e}")
 
     def _apply_initial_style(self):
         theme_name = self.config.get("theme", "Oscuro")
