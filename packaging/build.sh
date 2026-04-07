@@ -218,12 +218,30 @@ build_appimage() {
     echo "=== Copying Python binaries to AppDir ==="
     cp -r "$PYINSTALLER_OUT/"* "$APPDIR/usr/"
 
+    echo "=== Removing system libraries from PyInstaller output ==="
+    cd "$APPDIR/usr"
+    rm -f libglib-2.0.so* libgobject-2.0.so* libgio-2.0.so* libgmodule-2.0.so*
+    rm -f libmount.so* libblkid.so* libsystemd.so* libcap.so*
+    rm -f libgcrypt.so* libgpg-error.so* libdbus-1.so*
+    rm -f libgnutls.so* libmp3lame.so* libm.so* libc.so* librt.so* libpthread.so*
+    rm -f ld-linux-x86-64.so* libdl.so* libutil.so* libnsl.so* libnss_*
+    cd "$SCRIPT_DIR"
+
     copy_source_code "$APPDIR/usr/share/wengine"
 
     echo "=== Bundling binaries ==="
     download_yt_dlp "$APPDIR/usr/bin"
     copy_binary_with_deps mpv "$APPDIR/usr/bin"
     copy_binary_with_deps mpvpaper "$APPDIR/usr/bin"
+
+    echo "=== Removing system libraries from bundled binaries ==="
+    cd "$APPDIR/usr/bin"
+    rm -f libglib-2.0.so* libgobject-2.0.so* libgio-2.0.so* libgmodule-2.0.so*
+    rm -f libmount.so* libblkid.so* libsystemd.so* libcap.so*
+    rm -f libgcrypt.so* libgpg-error.so* libdbus-1.so*
+    rm -f libgnutls.so* libmp3lame.so* libm.so* libc.so* librt.so* libpthread.so*
+    rm -f ld-linux-x86-64.so* libdl.so* libutil.so* libnsl.so* libnss_*
+    cd "$SCRIPT_DIR"
 
     echo "=== Creating Python symlinks ==="
     PYTHON_BASE=$(ls -d "$APPDIR"/usr/lib/python3.* 2>/dev/null | head -1)
